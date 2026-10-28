@@ -3605,18 +3605,8 @@ dependencies = [
 name = "schema-lens-app"
 version = "1.0.0"
 dependencies = [
- "dotnet_conn_parser",
- "local-storage",
- "schema-diff",
- "schema-lens-domain",
- "schema-reader",
  "serde",
- "serde_json",
- "sql-generator",
- "thiserror 1.0.69",
  "tokio",
- "tokio-util",
- "tracing",
  "uuid",
 ]
 
@@ -3624,9 +3614,7 @@ dependencies = [
 name = "schema-lens-desktop"
 version = "1.0.0"
 dependencies = [
- "dotnet_conn_parser",
  "schema-lens-app",
- "schema-lens-domain",
  "serde",
  "serde_json",
  "tauri",

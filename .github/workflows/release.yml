@@ -56,7 +56,7 @@ jobs:
       - name: Run Tests
         run: |
           cargo test --workspace --exclude schema-reader
-          cargo test -p schema-reader --test sql_file_reader
+          cargo test -p schema-reader --lib
 
       - name: Compile Release Desktop Binary
         run: cargo build --release -p schema-lens-desktop

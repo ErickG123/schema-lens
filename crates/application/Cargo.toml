@@ -4,16 +4,8 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
-schema-lens-domain = { path = "../domain" }
-dotnet_conn_parser = { path = "../dotnet_conn_parser" }
-schema-reader = { path = "../schema-reader" }
-schema-diff = { path = "../schema-diff" }
-sql-generator = { path = "../sql-generator" }
-local-storage = { path = "../local-storage" }
-tokio = { version = "1.38", features = ["full"] }
-tokio-util = { version = "0.7" }
 serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-thiserror = "1.0"
-tracing = "0.1"
+
+[dev-dependencies]
+tokio = { version = "1.38", features = ["full"] }
 uuid = { version = "1.10", features = ["v4"] }
