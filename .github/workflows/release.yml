@@ -2,6 +2,8 @@ name: Release Pipeline - SchemaLens Desktop
 
 on:
   push:
+    tags:
+      - 'v*'
     branches:
       - master
       - main
@@ -11,7 +13,7 @@ on:
   workflow_dispatch:
     inputs:
       manual_version:
-        description: 'Versão manual explícita (opcional, ex: 0.2.0)'
+        description: 'Versão manual explícita (opcional, ex: 1.0.0)'
         required: false
         default: ''
 
@@ -66,13 +68,25 @@ jobs:
         shell: powershell
         run: |
           $explicitVersion = "${{ github.event.inputs.manual_version }}"
-          $currentVersion = "0.1.0"
+          $refName = "${{ github.ref_name }}"
           
-          if ($explicitVersion -ne "") {
-            $targetVersion = $explicitVersion
+          # 1. Se foi disparado por tag Git (ex: v1.0.0), extrai a versão da tag
+          if ("${{ github.ref_type }}" -eq "tag" -and $refName -match '^v?(\d+\.\d+\.\d+.*)$') {
+            $targetVersion = $Matches[1]
+          } elseif ($explicitVersion -ne "") {
+            $targetVersion = $explicitVersion.TrimStart('v')
           } else {
-            # Se não houver tag prévia, parte da versão canônica base
-            $targetVersion = $currentVersion
+            # 2. Extrai a versão real do Cargo.toml ou tauri.conf.json
+            if (Test-Path "src-tauri/Cargo.toml") {
+              $cargoContent = Get-Content "src-tauri/Cargo.toml" -Raw
+              if ($cargoContent -match 'version\s*=\s*"([^"]+)"') {
+                $targetVersion = $Matches[1]
+              } else {
+                $targetVersion = "1.0.0"
+              }
+            } else {
+              $targetVersion = "1.0.0"
+            }
           }
 
           $tag = "v$targetVersion"
@@ -90,6 +104,8 @@ jobs:
           - Binário nativo compilado para Windows 64-bit (x86_64-pc-windows-msvc)
           - Frontend Angular 19 integrado via WebView2
           - Introspecção estritamente somente leitura de catálogos SQL Server
+          - Diagramas relacionais ER interativos com Cytoscape.js
+          - Análise defensiva de dependências e risco operacional
 
           ### Checksums de Integridade (SHA-256):
           Consulte o arquivo `build-manifest.json` anexado.
