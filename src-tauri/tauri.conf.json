@@ -1,0 +1,28 @@
+{
+  "$schema": "https://raw.githubusercontent.com/tauri-apps/tauri/dev/crates/tauri-config-schema/schema.json",
+  "productName": "SchemaLens",
+  "version": "1.0.0",
+  "identifier": "com.schemalens.desktop",
+  "build": {
+    "frontendDist": "../frontend/dist/frontend/browser"
+  },
+  "app": {
+    "withGlobalTauri": true,
+    "security": {
+      "csp": "default-src 'self'; connect-src 'self' ipc: http://ipc.localhost https://ipc.localhost; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-inline'; img-src 'self' data: asset:;"
+    },
+    "windows": [
+      {
+        "title": "SchemaLens — SQL Server Schema Comparison",
+        "width": 1280,
+        "height": 800,
+        "resizable": true,
+        "fullscreen": false
+      }
+    ]
+  },
+  "plugins": {
+    "opener": null,
+    "dialog": null
+  }
+}

@@ -1,0 +1,82 @@
+<div class="panel-card">
+  <div class="panel-header">
+    <div class="panel-title">
+      <span class="role-badge" [ngClass]="side === 'source' ? 'role-source' : 'role-target'">
+        {{ side === 'source' ? 'ORIGEM (A)' : 'DESTINO (B)' }}
+      </span>
+      <span class="panel-subtitle">
+        {{ side === 'source' ? 'Base de Referência' : 'Alvo da Comparação' }}
+      </span>
+    </div>
+    <div class="status-indicator" [ngClass]="statusClass">
+      {{ statusText }}
+    </div>
+  </div>
+
+  <div class="panel-body">
+    <div class="form-group">
+      <label class="form-label">Modo de Conexão</label>
+      <select class="form-control" [(ngModel)]="config.mode">
+        <option value="online">Banco SQL Server Conectado</option>
+        <option value="file">Arquivo de Script DDL (.sql)</option>
+      </select>
+    </div>
+
+    <!-- Modo Online -->
+    <div *ngIf="config.mode === 'online'" class="online-section">
+      <div class="form-row">
+        <div class="form-group flex-2">
+          <label class="form-label">Servidor e Porta</label>
+          <input type="text" class="form-control" [(ngModel)]="config.server" placeholder="ex: 127.0.0.1,14331">
+        </div>
+        <div class="form-group flex-2">
+          <label class="form-label">Banco de Dados</label>
+          <input type="text" class="form-control" [(ngModel)]="config.database" placeholder="ex: SchemaSource">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Tipo de Autenticação</label>
+        <select class="form-control" [(ngModel)]="config.authType">
+          <option value="sql">SQL Server Authentication (Usuário / Senha)</option>
+          <option value="windows">Windows Integrated Authentication (SSPI)</option>
+        </select>
+      </div>
+
+      <div *ngIf="config.authType === 'sql'" class="form-row">
+        <div class="form-group flex-1">
+          <label class="form-label">Usuário</label>
+          <input type="text" class="form-control" [(ngModel)]="config.username" placeholder="sa">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label">Senha</label>
+          <input type="password" class="form-control" [(ngModel)]="config.password" placeholder="••••••••">
+        </div>
+      </div>
+
+      <div class="form-checkbox">
+        <label>
+          <input type="checkbox" [(ngModel)]="config.trustServerCertificate">
+          <span>Confiar no Certificado do Servidor (TrustServerCertificate)</span>
+        </label>
+      </div>
+    </div>
+
+    <!-- Modo Arquivo Offline -->
+    <div *ngIf="config.mode === 'file'" class="file-section">
+      <div class="form-group">
+        <label class="form-label">Caminho do Arquivo DDL (.sql)</label>
+        <input type="text" class="form-control" [(ngModel)]="config.filePath" placeholder="C:\scripts\schema.sql">
+      </div>
+    </div>
+
+    <button 
+      type="button" 
+      class="btn btn-secondary test-btn" 
+      [disabled]="loading"
+      (click)="onTest.emit()">
+      <span *ngIf="loading">Testando Conexão...</span>
+      <span *ngIf="!loading">Testar Conectividade</span>
+    </button>
+  </div>
+</div>

@@ -1,0 +1,80 @@
+<div class="results-container">
+  <!-- Barra de Resumo Executivo -->
+  <div *ngIf="hasRun" class="summary-deck">
+    <div class="summary-tile tile-total">
+      <div class="tile-number">{{ diffs.length }}</div>
+      <div class="tile-caption">Total de Diferenças</div>
+    </div>
+    <div class="summary-tile tile-critical">
+      <div class="tile-number">{{ countSeverity('CRÍTICA') }}</div>
+      <div class="tile-caption">Severidade Crítica</div>
+    </div>
+    <div class="summary-tile tile-target-missing">
+      <div class="tile-number">{{ countCategory('Destino') }}</div>
+      <div class="tile-caption">Ausentes no Destino</div>
+    </div>
+    <div class="summary-tile tile-source-missing">
+      <div class="tile-number">{{ countCategory('Origem') }}</div>
+      <div class="tile-caption">Ausentes na Origem</div>
+    </div>
+  </div>
+
+  <!-- Tabela Responsiva de Diferenças -->
+  <div class="table-scroll">
+    <table class="diff-table">
+      <thead>
+        <tr>
+          <th style="width: 110px;">Severidade</th>
+          <th style="width: 100px;">Schema</th>
+          <th style="width: 220px;">Objeto / Propriedade</th>
+          <th style="width: 180px;">Classificação</th>
+          <th style="width: 200px;">Origem (A)</th>
+          <th style="width: 200px;">Destino (B)</th>
+          <th>Impacto & Risco Operacional</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngIf="!hasRun">
+          <td colspan="7" class="empty-state">
+            <div class="empty-content">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="8" x2="12" y2="12"></line>
+                <line x1="12" y1="16" x2="12.01" y2="16"></line>
+              </svg>
+              <p class="empty-title">Nenhuma Comparação Executada</p>
+              <p class="empty-desc">Configure os parâmetros de Origem e Destino e clique em <b>"Executar Comparação Estrutural"</b>.</p>
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngIf="hasRun && diffs.length === 0">
+          <td colspan="7" class="empty-state">
+            <div class="empty-content success-content">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                <polyline points="22 4 12 14.01 9 11.01"></polyline>
+              </svg>
+              <p class="empty-title">Schemas Idênticos</p>
+              <p class="empty-desc">Nenhuma discrepância estrutural foi identificada entre a Origem e o Destino.</p>
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngFor="let row of diffs" class="diff-row" (click)="onInspect.emit(row.objectName)" style="cursor: pointer;" title="Clique para abrir a inspeção detalhada do objeto">
+          <td>
+            <span class="severity-badge" [ngClass]="getSeverityClass(row.severity)">
+              {{ row.severity }}
+            </span>
+          </td>
+          <td class="code-font text-muted">{{ row.schema }}</td>
+          <td class="code-font font-bold text-highlight">{{ row.objectName }}</td>
+          <td class="category-cell">{{ row.category }}</td>
+          <td class="code-font diff-val source-val">{{ row.valueSource }}</td>
+          <td class="code-font diff-val target-val">{{ row.valueTarget }}</td>
+          <td class="details-cell">{{ row.details }}</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

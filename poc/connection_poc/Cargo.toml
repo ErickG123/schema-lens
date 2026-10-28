@@ -1,0 +1,10 @@
+[package]
+name = "connection_poc"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+tokio = { version = "1.38", features = ["full"] }
+tiberius = { version = "0.12", features = ["sql-browser-tokio", "winauth", "native-tls", "chrono"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+thiserror = "1.0"

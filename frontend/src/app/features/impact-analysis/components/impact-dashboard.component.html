@@ -1,0 +1,77 @@
+<div class="impact-container">
+  <div class="impact-header">
+    <div class="header-info">
+      <h3 class="impact-title">Análise de Impacto & Riscos de Migração</h3>
+      <p class="impact-subtitle">Avaliação defensiva de operações com detecção de riscos destrutivos e quebra de integridade.</p>
+    </div>
+    <div class="risk-stats">
+      <div class="stat-badge stat-critical">
+        <b>{{ getRiskCount('CRITICAL') }}</b> Crítico (Destrutivo)
+      </div>
+      <div class="stat-badge stat-medium">
+        <b>{{ getRiskCount('MEDIUM') }}</b> Médio
+      </div>
+      <div class="stat-badge stat-info">
+        <b>{{ getRiskCount('INFO') }}</b> Aditivo Seguro
+      </div>
+    </div>
+  </div>
+
+  <div class="impact-body">
+    <!-- Lista de Alertas de Risco -->
+    <div class="alerts-section">
+      <div class="section-title">Alertas Estruturais Detectados ({{ alerts.length }})</div>
+      <div class="alerts-list">
+        <div *ngFor="let alert of alerts" class="alert-card" [ngClass]="'card-' + alert.severity">
+          <div class="card-top">
+            <span class="severity-pill" [ngClass]="'pill-' + alert.severity">{{ alert.severity }}</span>
+            <span class="rule-name">{{ alert.ruleTriggered }}</span>
+            <span class="confidence-tag">Confiança: {{ alert.confidence }}</span>
+          </div>
+
+          <div class="card-object">{{ alert.affectedObject }}</div>
+          <div class="card-desc">{{ alert.changeDetected }}</div>
+          
+          <div class="consequence-box">
+            <b>Consequência Potencial:</b> {{ alert.potentialConsequence }}
+          </div>
+
+          <div class="action-box">
+            <b>Recomendação Técnica:</b> {{ alert.recommendedAction }}
+          </div>
+
+          <!-- Cadeia de Dependências Identificadas -->
+          <div *ngIf="alert.dependencies && alert.dependencies.length > 0" class="dependencies-box">
+            <div class="dep-header">Cadeia de Dependências Conhecidas ({{ alert.dependencies.length }}):</div>
+            <div class="dep-list">
+              <div *ngFor="let dep of alert.dependencies" class="dep-item">
+                <span class="dep-kind">{{ dep.relationshipKind }}</span>
+                <span class="dep-name"><b>{{ dep.objectName }}</b> ({{ dep.objectType }})</span>
+                <span class="dep-loc">{{ dep.databaseLocation }}</span>
+                <span class="dep-src">Origem: {{ dep.evidenceSource }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Ordem Sugerida no Plano de Migração -->
+    <div class="plan-section">
+      <div class="section-title">Plano de Execução Sugerido (Ordenado por Dependências)</div>
+      <div class="plan-steps">
+        <div *ngFor="let step of planSteps" class="plan-card">
+          <div class="step-badge">Etapa {{ step.stepNumber }}</div>
+          <div class="step-main">
+            <div class="step-title">
+              <span class="op-type">{{ step.operationType }}</span>
+              <b>{{ step.targetObject }}</b>
+            </div>
+            <div class="step-desc">{{ step.description }}</div>
+            <pre class="step-sql">{{ step.sqlSnippet }}</pre>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

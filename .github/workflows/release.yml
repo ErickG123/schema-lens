@@ -1,0 +1,132 @@
+name: Release Pipeline - SchemaLens Desktop
+
+on:
+  push:
+    branches:
+      - master
+      - main
+    paths-ignore:
+      - 'docs/**'
+      - '*.md'
+  workflow_dispatch:
+    inputs:
+      manual_version:
+        description: 'Versão manual explícita (opcional, ex: 0.2.0)'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-publish:
+    name: Build & Publish Release
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust Nightly Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Frontend Dependencies
+        run: npm --prefix frontend ci
+
+      - name: Build Frontend Assets
+        run: npm --prefix frontend run build
+
+      - name: Run Tests
+        run: |
+          cargo test --workspace --exclude schema-reader
+          cargo test -p schema-reader --test sql_file_reader
+
+      - name: Compile Release Desktop Binary
+        run: cargo build --release -p schema-lens-desktop
+
+      - name: Determine Version & Generate Release Notes
+        id: semver
+        shell: powershell
+        run: |
+          $explicitVersion = "${{ github.event.inputs.manual_version }}"
+          $currentVersion = "0.1.0"
+          
+          if ($explicitVersion -ne "") {
+            $targetVersion = $explicitVersion
+          } else {
+            # Se não houver tag prévia, parte da versão canônica base
+            $targetVersion = $currentVersion
+          }
+
+          $tag = "v$targetVersion"
+          Write-Host "Target Version: $targetVersion (Tag: $tag)"
+          echo "version=$targetVersion" >> $env:GITHUB_OUTPUT
+          echo "tag=$tag" >> $env:GITHUB_OUTPUT
+
+          # Gera notas de release a partir do histórico de commits
+          $notes = @"
+          ## SchemaLens $tag
+          
+          Release automatizada da aplicação desktop SchemaLens para Windows.
+
+          ### Componentes e Artefatos:
+          - Binário nativo compilado para Windows 64-bit (x86_64-pc-windows-msvc)
+          - Frontend Angular 19 integrado via WebView2
+          - Introspecção estritamente somente leitura de catálogos SQL Server
+
+          ### Checksums de Integridade (SHA-256):
+          Consulte o arquivo `build-manifest.json` anexado.
+          "@
+          Set-Content -Path "release-notes.md" -Value $notes
+
+      - name: Generate Build Manifest and SHA-256
+        shell: powershell
+        run: |
+          $binPath = "target\release\schema-lens-desktop.exe"
+          $hash = (Get-FileHash -Path $binPath -Algorithm SHA256).Hash
+          $manifest = @{
+            Application = "SchemaLens"
+            Version = "${{ steps.semver.outputs.version }}"
+            Tag = "${{ steps.semver.outputs.tag }}"
+            CommitSha = "${{ github.sha }}"
+            BuildDateUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+            Target = "x86_64-pc-windows-msvc"
+            Artifacts = @(
+              @{
+                Name = "schema-lens-desktop.exe"
+                Sha256 = $hash
+              }
+            )
+          } | ConvertTo-Json -Depth 4
+          Set-Content -Path "target\release\build-manifest.json" -Value $manifest
+
+      - name: Create Git Tag and GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ steps.semver.outputs.tag }}
+          name: SchemaLens ${{ steps.semver.outputs.tag }}
+          body_path: release-notes.md
+          draft: false
+          prerelease: false
+          files: |
+            target/release/schema-lens-desktop.exe
+            target/release/build-manifest.json
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

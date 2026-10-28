@@ -1,0 +1,21 @@
+[package]
+name = "schema-reader"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+schema-lens-domain = { path = "../domain" }
+dotnet_conn_parser = { path = "../dotnet_conn_parser" }
+tokio = { version = "1.38", features = ["full"] }
+tiberius = { version = "0.12", features = ["sql-browser-tokio", "winauth", "native-tls", "chrono"] }
+tokio-util = { version = "0.7", features = ["compat"] }
+thiserror = "1.0"
+async-trait = "0.1"
+tracing = "0.1"
+chrono = { version = "0.4", features = ["serde"] }
+
+[dev-dependencies]
+schema-diff = { path = "../schema-diff" }
+sql-generator = { path = "../sql-generator" }
+
+

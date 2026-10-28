@@ -1,0 +1,232 @@
+<div class="diagram-workspace">
+  <!-- Toolbar de Controles do Grafo ER -->
+  <div class="diagram-toolbar">
+    <div class="mode-selector">
+      <button 
+        type="button" 
+        class="mode-btn" 
+        [ngClass]="{ 'active': currentMode === 'diff' }"
+        (click)="setMode('diff')">
+        Diagrama Comparativo (Diff)
+      </button>
+      <button 
+        type="button" 
+        class="mode-btn" 
+        [ngClass]="{ 'active': currentMode === 'source' }"
+        (click)="setMode('source')">
+        Origem (A)
+      </button>
+      <button 
+        type="button" 
+        class="mode-btn" 
+        [ngClass]="{ 'active': currentMode === 'target' }"
+        (click)="setMode('target')">
+        Destino (B)
+      </button>
+    </div>
+
+    <!-- Filtros de Categoria -->
+    <div class="filter-pills">
+      <button 
+        type="button" 
+        class="filter-pill" 
+        [ngClass]="{ 'active': filterCategory === 'all' }"
+        (click)="setFilterCategory('all')">
+        Todas ({{ stats.totalTables }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill pill-diff" 
+        [ngClass]="{ 'active': filterCategory === 'diff_only' }"
+        (click)="setFilterCategory('diff_only')">
+        Com Diferenças ({{ stats.modifiedTables + stats.missingInTarget + stats.missingInSource }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill pill-missing-target" 
+        [ngClass]="{ 'active': filterCategory === 'missing_target' }"
+        (click)="setFilterCategory('missing_target')">
+        Exclusivas Origem ({{ stats.missingInTarget }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill pill-missing-source" 
+        [ngClass]="{ 'active': filterCategory === 'missing_source' }"
+        (click)="setFilterCategory('missing_source')">
+        Exclusivas Destino ({{ stats.missingInSource }})
+      </button>
+      <button 
+        type="button" 
+        class="filter-pill pill-identical" 
+        [ngClass]="{ 'active': filterCategory === 'identical_only' }"
+        (click)="setFilterCategory('identical_only')">
+        Sem Diferenças ({{ stats.identicalTables }})
+      </button>
+    </div>
+
+    <div class="search-box">
+      <input 
+        type="text" 
+        class="form-control diagram-search" 
+        placeholder="Localizar tabela ou schema..." 
+        [(ngModel)]="searchQuery" 
+        (ngModelChange)="onSearch()">
+    </div>
+
+    <div class="viewport-actions">
+      <button type="button" class="btn btn-secondary btn-sm" (click)="fitGraph()" title="Ajustar à tela">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <polyline points="15 3 21 3 21 9"></polyline>
+          <polyline points="9 21 3 21 3 15"></polyline>
+          <line x1="21" y1="3" x2="14" y2="10"></line>
+          <line x1="3" y1="21" x2="10" y2="14"></line>
+        </svg>
+        Ajustar
+      </button>
+      <button type="button" class="btn btn-secondary btn-sm" (click)="resetLayout()" title="Recalcular layout">
+        Organizar
+      </button>
+    </div>
+  </div>
+
+  <!-- Barra de Estatísticas do Grafo -->
+  <div class="stats-bar">
+    <div class="stat-item">
+      <span>Tabelas Totais:</span> <b>{{ stats.totalTables }}</b>
+    </div>
+    <div class="stat-item">
+      <span>Idênticas:</span> <b class="text-identical">{{ stats.identicalTables }}</b>
+    </div>
+    <div class="stat-item">
+      <span>Divergentes:</span> <b class="text-modified">{{ stats.modifiedTables }}</b>
+    </div>
+    <div class="stat-item">
+      <span>Exclusivas Origem:</span> <b class="text-missing-target">{{ stats.missingInTarget }}</b>
+    </div>
+    <div class="stat-item">
+      <span>Exclusivas Destino:</span> <b class="text-missing-source">{{ stats.missingInSource }}</b>
+    </div>
+    <div class="stat-item">
+      <span>Relacionamentos (FK):</span> <b>{{ stats.relationshipsCount }}</b>
+    </div>
+  </div>
+
+  <!-- Área Principal de Renderização do Canvas Cytoscape -->
+  <div class="canvas-area">
+    <div #cyContainer class="cytoscape-container"></div>
+
+    <!-- Legenda Flutuante Persistente -->
+    <div class="diagram-legend">
+      <div class="legend-title">Convenção de Cores & Rótulos</div>
+      <div class="legend-item">
+        <span class="legend-dot dot-identical"></span>
+        <span>Idêntico em A e B</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot dot-missing-target"></span>
+        <span>Ausente no Destino (Exclusivo A)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot dot-missing-source"></span>
+        <span>Ausente na Origem (Exclusivo B)</span>
+      </div>
+      <div class="legend-item">
+        <span class="legend-dot dot-modified"></span>
+        <span>Divergência Estrutural (Alter Coluna)</span>
+      </div>
+    </div>
+
+    <!-- Painel Lateral de Inspeção e Comparação de Colunas -->
+    <div *ngIf="selectedTable" class="table-details-panel">
+      <div class="details-header">
+        <div class="details-title">
+          <span class="schema-tag">{{ selectedTable.schema }}</span>
+          <b>{{ selectedTable.tableName }}</b>
+        </div>
+        <div class="details-header-actions">
+          <button type="button" class="btn-goto-diffs" (click)="navigateToDiffs(selectedTable.id)" title="Ver na tabela de diferenças">
+            Ver em Diferenças ↗
+          </button>
+          <button type="button" class="close-details" (click)="selectedTable = null">✕</button>
+        </div>
+      </div>
+
+      <div class="details-body">
+        <div class="status-summary" [ngClass]="'status-' + selectedTable.diffStatus">
+          Status: <b>{{ getStatusLabel(selectedTable.diffStatus) }}</b>
+        </div>
+
+        <!-- Se for tabela ausente, exibe banner informativo contextual -->
+        <div *ngIf="selectedTable.diffStatus === 'missing_in_target'" class="missing-table-banner">
+          ⚠️ <b>Tabela Ausente no Destino:</b> Esta tabela existe unicamente no banco de origem. O script de migração incluirá o comando <code>CREATE TABLE</code> completo.
+        </div>
+        <div *ngIf="selectedTable.diffStatus === 'missing_in_source'" class="missing-table-banner banner-source">
+          ℹ️ <b>Tabela Exclusiva do Destino:</b> Esta tabela não consta na origem (presente apenas no alvo).
+        </div>
+
+        <!-- Sub-abas do Painel de Inspeção -->
+        <div class="panel-sub-tabs">
+          <button 
+            *ngIf="selectedTable.columnComparisons && selectedTable.columnComparisons.length > 0"
+            type="button" 
+            class="sub-tab-btn" 
+            [ngClass]="{ 'active': activeDetailsTab === 'comparison' }"
+            (click)="activeDetailsTab = 'comparison'">
+            Comparação Lado a Lado ({{ selectedTable.columnComparisons.length }})
+          </button>
+          <button 
+            type="button" 
+            class="sub-tab-btn" 
+            [ngClass]="{ 'active': activeDetailsTab === 'columns' }"
+            (click)="activeDetailsTab = 'columns'">
+            Definição de Colunas ({{ selectedTable.columns.length }})
+          </button>
+        </div>
+
+        <!-- Visualização 1: Comparação de Colunas Lado a Lado -->
+        <div *ngIf="activeDetailsTab === 'comparison' && selectedTable.columnComparisons" class="column-comparison-grid">
+          <div class="comparison-grid-header">
+            <span class="col-header-name">Coluna</span>
+            <span class="col-header-src">Origem (A)</span>
+            <span class="col-header-tgt">Destino (B)</span>
+          </div>
+
+          <div *ngFor="let c of selectedTable.columnComparisons" class="comparison-grid-row" [ngClass]="'diff-' + c.status">
+            <div class="col-cell-name">
+              <span *ngIf="c.isPrimaryKey" class="key-badge pk-badge">PK</span>
+              <span *ngIf="c.isForeignKey" class="key-badge fk-badge">FK</span>
+              <b>{{ c.name }}</b>
+            </div>
+
+            <div class="col-cell-side">
+              <span *ngIf="c.sourceType" class="type-val">{{ c.sourceType }}</span>
+              <span *ngIf="c.sourceType" class="null-val">{{ c.sourceNullable ? 'NULL' : 'NOT NULL' }}</span>
+              <span *ngIf="!c.sourceType" class="not-present">Inexistente</span>
+            </div>
+
+            <div class="col-cell-side">
+              <span *ngIf="c.targetType" class="type-val" [class.highlight-diff]="c.status === 'modified'">{{ c.targetType }}</span>
+              <span *ngIf="c.targetType" class="null-val">{{ c.targetNullable ? 'NULL' : 'NOT NULL' }}</span>
+              <span *ngIf="!c.targetType" class="not-present">Inexistente</span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Visualização 2: Definição Regular de Colunas -->
+        <div *ngIf="activeDetailsTab === 'columns'" class="columns-list">
+          <div *ngFor="let col of selectedTable.columns" class="column-item" [ngClass]="'col-' + col.diffStatus">
+            <div class="col-meta">
+              <span *ngIf="col.isPrimaryKey" class="key-badge pk-badge">PK</span>
+              <span *ngIf="col.isForeignKey" class="key-badge fk-badge">FK</span>
+              <span class="col-name">{{ col.name }}</span>
+            </div>
+            <div class="col-type">
+              {{ col.dataType }} {{ col.isNullable ? 'NULL' : 'NOT NULL' }}
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>

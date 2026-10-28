@@ -1,0 +1,21 @@
+[package]
+name = "schema-lens-desktop"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+schema-lens-domain = { path = "../crates/domain" }
+schema-lens-app = { path = "../crates/application" }
+dotnet_conn_parser = { path = "../crates/dotnet_conn_parser" }
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+tokio = { version = "1.38", features = ["full"] }
+tauri = { version = "2.0", features = [] }
+tauri-plugin-opener = "2.0"
+tauri-plugin-dialog = "2.0"
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+[build-dependencies]
+tauri-build = { version = "2.0", features = [] }
+

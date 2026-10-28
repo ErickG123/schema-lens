@@ -1,0 +1,95 @@
+<div *ngIf="inspection" class="inspection-drawer">
+  <div class="drawer-header">
+    <div class="header-main">
+      <span class="type-pill">{{ inspection.objectType }}</span>
+      <h3 class="object-id">{{ inspection.objectId }}</h3>
+    </div>
+    <div class="header-actions">
+      <span class="status-badge" [ngClass]="'badge-' + inspection.overallStatus">
+        {{ inspection.overallStatus }}
+      </span>
+      <button type="button" class="close-btn" (click)="onClose.emit()">✕</button>
+    </div>
+  </div>
+
+  <div class="drawer-tabs">
+    <button 
+      type="button" 
+      class="tab-btn" 
+      [ngClass]="{ 'active': activeTab === 'properties' }" 
+      (click)="activeTab = 'properties'">
+      Propriedades Lado a Lado
+    </button>
+    <button 
+      type="button" 
+      class="tab-btn" 
+      [ngClass]="{ 'active': activeTab === 'sql' }" 
+      (click)="activeTab = 'sql'">
+      Definição SQL (Diff)
+    </button>
+    <button 
+      type="button" 
+      class="tab-btn" 
+      [ngClass]="{ 'active': activeTab === 'relations' }" 
+      (click)="activeTab = 'relations'">
+      Relacionamentos & FKs ({{ inspection.relatedObjects.length }})
+    </button>
+  </div>
+
+  <div class="drawer-content">
+    <!-- Tab 1: Propriedades Lado a Lado -->
+    <div *ngIf="activeTab === 'properties'" class="properties-tab">
+      <table class="props-table">
+        <thead>
+          <tr>
+            <th style="width: 25%;">Propriedade</th>
+            <th style="width: 35%;">Origem (Lado A)</th>
+            <th style="width: 35%;">Destino (Lado B)</th>
+            <th style="width: 5%;">Status</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let prop of inspection.properties" [ngClass]="{ 'row-diff': prop.status !== 'identical', 'row-risk': prop.isDestructiveRisk }">
+            <td class="prop-name">
+              <b>{{ prop.name }}</b>
+              <span *ngIf="prop.isDestructiveRisk" class="risk-indicator">Risco Truncamento</span>
+            </td>
+            <td class="code-val source-val">{{ prop.sourceValue || '—' }}</td>
+            <td class="code-val target-val">{{ prop.targetValue || '—' }}</td>
+            <td>
+              <span class="status-dot" [ngClass]="'dot-' + prop.status"></span>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- Tab 2: Definição SQL Lado a Lado -->
+    <div *ngIf="activeTab === 'sql'" class="sql-diff-tab">
+      <div class="sql-pane">
+        <div class="pane-title">Definição na Origem (Lado A)</div>
+        <pre class="code-block">{{ inspection.sourceSqlDefinition || '-- Definição inexistente na Origem' }}</pre>
+      </div>
+
+      <div class="sql-pane">
+        <div class="pane-title">Definição no Destino (Lado B)</div>
+        <pre class="code-block">{{ inspection.targetSqlDefinition || '-- Definição inexistente no Destino' }}</pre>
+      </div>
+    </div>
+
+    <!-- Tab 3: Relacionamentos -->
+    <div *ngIf="activeTab === 'relations'" class="relations-tab">
+      <div *ngIf="inspection.relatedObjects.length === 0" class="empty-relations">
+        Nenhum relacionamento de Foreign Key detectado para este objeto.
+      </div>
+
+      <div class="relations-grid">
+        <div *ngFor="let rel of inspection.relatedObjects" class="relation-card">
+          <div class="rel-kind">{{ rel.relationshipKind }}</div>
+          <div class="rel-target">{{ rel.objectName }}</div>
+          <div class="rel-type">{{ rel.type }} • Schema: {{ rel.schema }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>

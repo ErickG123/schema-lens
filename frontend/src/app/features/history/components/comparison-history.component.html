@@ -1,0 +1,53 @@
+<div class="history-container">
+  <div class="history-header">
+    <div class="header-info">
+      <h3 class="history-title">Histórico Local de Comparações & Snapshots</h3>
+      <p class="history-subtitle">Consulte análises anteriores salvas no armazenamento local SQLite / offline.</p>
+    </div>
+
+    <div class="history-actions">
+      <button type="button" class="btn btn-secondary" (click)="exportHtmlReport()">
+        Exportar Relatório HTML
+      </button>
+    </div>
+  </div>
+
+  <div class="history-body">
+    <table class="history-table">
+      <thead>
+        <tr>
+          <th>Data / Hora</th>
+          <th>Origem (Lado A)</th>
+          <th>Destino (Lado B)</th>
+          <th>Diferenças</th>
+          <th>Críticas</th>
+          <th>Status</th>
+          <th style="text-align: right;">Ações</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let item of historyService.history()">
+          <td class="code-font">{{ item.executedAt | date:'dd/MM/yyyy HH:mm:ss' }}</td>
+          <td class="code-font">{{ item.sourceIdentifier }}</td>
+          <td class="code-font">{{ item.targetIdentifier }}</td>
+          <td><b>{{ item.totalDifferences }}</b></td>
+          <td>
+            <span class="crit-badge" *ngIf="item.criticalCount > 0">{{ item.criticalCount }}</span>
+            <span *ngIf="item.criticalCount === 0">—</span>
+          </td>
+          <td>
+            <span class="status-pill">{{ item.status }}</span>
+          </td>
+          <td style="text-align: right;">
+            <button type="button" class="btn btn-secondary btn-xs" (click)="onRestore.emit(item.diffs)">
+              Carregar Snapshot
+            </button>
+            <button type="button" class="btn btn-secondary btn-xs btn-del" (click)="historyService.deleteEntry(item.id)">
+              Excluir
+            </button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</div>

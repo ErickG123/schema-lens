@@ -1,0 +1,30 @@
+.toolbar-container {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  background: var(--card-bg);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.filter-group {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.search-input {
+  max-width: 380px;
+}
+
+.select-input {
+  max-width: 260px;
+}
+
+.action-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}

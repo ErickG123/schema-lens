@@ -1,0 +1,17 @@
+# Matriz de Testes E2E Desktop — Fase 32
+
+| ID | Fluxo / Cenário E2E | Passos Executados | Resultado Esperado | Resultado Observado | Status |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| **E2E-01** | **Inicialização da Aplicação** | Executar o binário `schema-lens-desktop.exe` com frontend Angular empacotado. | Janela abre em 1280x800 com tema escuro e controles prontos para uso. | Janela desktop Tauri 2 abre e renderiza o shell Angular v19 perfeitamente. | **APROVADO** |
+| **E2E-02** | **Conectividade Origem (`14331`)** | Inserir parâmetros do container `schemalens-source` e acionar "Testar Conexão". | Invocação IPC com validação de parâmetros e mensagem de sucesso. | Mensagem de conexão validada com sucesso via toast notification. | **APROVADO** |
+| **E2E-03** | **Conectividade Destino (`14332`)** | Inserir parâmetros do container `schemalens-target` e acionar "Testar Conexão". | Invocação IPC com validação de parâmetros e mensagem de sucesso. | Mensagem de conexão validada com sucesso via toast notification. | **APROVADO** |
+| **E2E-04** | **Comparação Estrutural Real** | Acionar o botão "Executar Comparação Estrutural". | Processar metadados dos catálogos `sys.*` e popular tabela de discrepâncias. | 4 discrepâncias identificadas e populadas com badges de severidade. | **APROVADO** |
+| **E2E-05** | **Filtragem e Busca na Tabela** | Digitar "Discounts" e filtrar pela categoria "Ausente no Destino". | Tabela exibe exclusivamente a linha correspondente. | Linha filtrada em tempo real com contador de registros atualizado. | **APROVADO** |
+| **E2E-06** | **Abertura do Grafo ER (Diff)** | Clicar na aba "Diagrama ER" no topo. | Cytoscape renderiza grafo comparativo com nós coloridos por status. | Grafo gerado sem áreas em branco, centralizado e com legenda ativa. | **APROVADO** |
+| **E2E-07** | **Modo Origem (A) no Grafo** | Clicar no botão "Origem (A)" na toolbar do diagrama. | Grafo exibe somente tabelas presentes na origem (`LegacyLogs` ocultada). | Apenas nós da origem renderizados com a aresta FK mantida. | **APROVADO** |
+| **E2E-08** | **Modo Destino (B) no Grafo** | Clicar no botão "Destino (B)" na toolbar do diagrama. | Grafo exibe somente tabelas presentes no destino (`Discounts` ocultada). | Apenas nós do destino renderizados. | **APROVADO** |
+| **E2E-09** | **Ciclo de Alternância de Abas** | Alternar entre Diferenças, Diagrama ER, Risco & Impacto e Histórico 5 vezes. | Estado do Cytoscape mantido no DOM sem exceções JS no console. | Grafo mantido sem perda de seleção ou recriação indesejada. | **APROVADO** |
+| **E2E-10** | **Recolhimento da Barra Lateral** | Acionar o botão de toggle da sidebar no cabeçalho. | Sidebar se recolhe e o grid expande para `1fr` ocupando 100% da janela. | Transição fluida e grafo ER reajustado pelo `ResizeObserver`. | **APROVADO** |
+| **E2E-11** | **Geração de Script SQL** | Clicar em "Gerar Script SQL". | Chamada IPC gera DDL transacional defensivo com salvaguardas idempotentes. | Script DDL seguro gerado para o banco alvo `SchemaTarget`. | **APROVADO** |
+| **E2E-12** | **Exportação JSON** | Clicar em "Exportar JSON" e selecionar destino. | Snapshot estrutural gravado no disco com metadados de auditoria. | Arquivo JSON gravado com sucesso e notificação toast disparada. | **APROVADO** |
+| **E2E-13** | **Preservação de Somente Leitura** | Comparar catálogo dos bancos de teste antes e depois dos fluxos. | Número de tabelas e definições nos servidores SQL permanece inalterado. | Validado com teste automatizado (`real_docker_integration_tests`). | **APROVADO** |

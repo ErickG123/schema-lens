@@ -1,0 +1,10 @@
+[package]
+name = "sql-generator"
+version = "1.0.0"
+edition = "2021"
+
+[dependencies]
+schema-lens-domain = { path = "../domain" }
+uuid = { version = "1.10", features = ["v4", "serde"] }
+chrono = { version = "0.4", features = ["serde"] }
+

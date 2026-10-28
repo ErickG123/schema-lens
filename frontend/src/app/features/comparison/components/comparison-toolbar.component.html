@@ -1,0 +1,47 @@
+<div class="toolbar-container">
+  <div class="filter-group">
+    <input 
+      type="text" 
+      class="form-control search-input" 
+      [(ngModel)]="searchQuery" 
+      (ngModelChange)="searchQueryChange.emit(searchQuery)"
+      placeholder="Pesquisar por tabela, coluna, constraint, schema...">
+    
+    <select 
+      class="form-control select-input" 
+      [(ngModel)]="selectedCategory" 
+      (ngModelChange)="selectedCategoryChange.emit(selectedCategory)">
+      <option value="all">Todas as Categorias</option>
+      <option value="missing_in_target">Ausentes no Destino (Apenas A)</option>
+      <option value="missing_in_source">Ausentes na Origem (Apenas B)</option>
+      <option value="property_mismatch">Divergências Estruturais / DDL</option>
+    </select>
+  </div>
+
+  <div class="action-group">
+    <button 
+      type="button" 
+      class="btn btn-secondary" 
+      [disabled]="diffCount === 0" 
+      (click)="onExportSql.emit()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="16 18 22 12 16 6"></polyline>
+        <polyline points="8 6 2 12 8 18"></polyline>
+      </svg>
+      Gerar Script .SQL
+    </button>
+
+    <button 
+      type="button" 
+      class="btn btn-secondary" 
+      [disabled]="diffCount === 0" 
+      (click)="onExportJson.emit()">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+        <polyline points="7 10 12 15 17 10"></polyline>
+        <line x1="12" y1="15" x2="12" y2="3"></line>
+      </svg>
+      Exportar JSON
+    </button>
+  </div>
+</div>

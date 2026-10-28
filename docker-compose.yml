@@ -1,0 +1,30 @@
+services:
+  schemalens-sql-source:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: schemalens-source
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - MSSQL_PID=Developer
+    ports:
+      - "${SOURCE_PORT:-14331}:1433"
+    volumes:
+      - source_data:/var/opt/mssql
+    restart: unless-stopped
+
+  schemalens-sql-target:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    container_name: schemalens-target
+    environment:
+      - ACCEPT_EULA=Y
+      - MSSQL_SA_PASSWORD=${MSSQL_SA_PASSWORD}
+      - MSSQL_PID=Developer
+    ports:
+      - "${TARGET_PORT:-14332}:1433"
+    volumes:
+      - target_data:/var/opt/mssql
+    restart: unless-stopped
+
+volumes:
+  source_data:
+  target_data:

@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/domain",
+    "crates/dotnet_conn_parser",
+    "crates/schema-reader",
+    "crates/schema-diff",
+    "crates/sql-generator",
+    "crates/local-storage",
+    "crates/application",
+    "src-tauri"
+]

@@ -1,0 +1,128 @@
+name: CI/CD Pipeline - SchemaLens Desktop
+
+on:
+  push:
+    branches:
+      - master
+      - main
+  pull_request:
+    branches:
+      - master
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-validation:
+    name: Frontend Angular Validation
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install Frontend Dependencies
+        run: npm --prefix frontend ci
+
+      - name: Run Frontend Automated Unit Tests
+        run: npm --prefix frontend test
+
+      - name: Build Angular Frontend (Production)
+        run: npm --prefix frontend run build
+
+  rust-validation:
+    name: Rust Workspace Validation & Tests
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Rust Nightly Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Check Formatting
+        run: cargo fmt --all -- --check
+
+      - name: Run Clippy Linter
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Run Unit and Parser Tests
+        run: |
+          cargo test --workspace --exclude schema-reader
+          cargo test -p schema-reader --test sql_file_reader
+
+  desktop-build-windows:
+    name: Tauri Desktop Build & Artifacts
+    needs: [frontend-validation, rust-validation]
+    runs-on: windows-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Setup Rust Toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+
+      - name: Install Frontend Dependencies
+        run: npm --prefix frontend ci
+
+      - name: Build Frontend Assets
+        run: npm --prefix frontend run build
+
+      - name: Compile SchemaLens Desktop Binary
+        run: cargo build --release -p schema-lens-desktop
+
+      - name: Generate Build Manifest and SHA-256 Hashes
+        shell: powershell
+        run: |
+          $binPath = "target\release\schema-lens-desktop.exe"
+          if (Test-Path $binPath) {
+            $hash = (Get-FileHash -Path $binPath -Algorithm SHA256).Hash
+            $manifest = @{
+              Application = "SchemaLens"
+              Version = "1.0.0"
+              CommitSha = "${{ github.sha }}"
+              BuildDateUtc = (Get-Date).ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ")
+              Target = "x86_64-pc-windows-msvc"
+              BinaryName = "schema-lens-desktop.exe"
+              Sha256 = $hash
+            } | ConvertTo-Json -Depth 4
+            Set-Content -Path "target\release\build-manifest.json" -Value $manifest
+          } else {
+            Write-Error "Binary $binPath not found!"
+            exit 1
+          }
+
+      - name: Upload Desktop Binaries & Manifest
+        uses: actions/upload-artifact@v4
+        with:
+          name: SchemaLens-Windows-Binaries
+          path: |
+            target/release/schema-lens-desktop.exe
+            target/release/build-manifest.json
+          retention-days: 14
