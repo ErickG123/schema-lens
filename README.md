@@ -4,7 +4,7 @@
 
 **Ferramenta Desktop Profissional de Inspeção, Comparação Estrutural e Análise de Risco para Microsoft SQL Server.**
 
-[![CI/CD Pipeline](https://github.com/erickalvarez/schema-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/erickalvarez/schema-lens/actions/workflows/ci.yml)
+[![CI/CD Pipeline](https://github.com/ErickG123/schema-lens/actions/workflows/ci.yml/badge.svg)](https://github.com/ErickG123/schema-lens/actions/workflows/ci.yml)
 [![Tauri 2](https://img.shields.io/badge/Tauri-v2.0-blue.svg?logo=tauri)](https://tauri.app/)
 [![Angular 19](https://img.shields.io/badge/Angular-v19.0-dd0031.svg?logo=angular)](https://angular.dev/)
 [![Rust](https://img.shields.io/badge/Rust-Nightly-orange.svg?logo=rust)](https://www.rust-lang.org/)
@@ -17,15 +17,22 @@
 
 ## 📋 Sumário
 
-- [Sobre o Projeto](#-sobre-o-projeto)
-- [Principais Funcionalidades](#-principais-funcionalidades)
-- [Arquitetura & Segurança](#-arquitetura--segurança)
-- [Pré-requisitos](#-pré-requisitos)
-- [Instalação e Execução Local](#-instalação-e-execução-local)
-- [Ambiente de Testes SQL Server (Docker)](#-ambiente-de-testes-sql-server-docker)
-- [Pipeline de CI/CD e Releases](#-pipeline-de-cicd-e-releases)
-- [Padrão de Contribuição](#-padrão-de-contribuição)
-- [Licença](#-licença)
+- [🔍 SchemaLens](#-schemalens)
+  - [📋 Sumário](#-sumário)
+  - [🎯 Sobre o Projeto](#-sobre-o-projeto)
+  - [✨ Principais Funcionalidades](#-principais-funcionalidades)
+  - [🛡️ Arquitetura \& Segurança](#️-arquitetura--segurança)
+    - [Princípios Inegociáveis](#princípios-inegociáveis)
+  - [📦 Pré-requisitos](#-pré-requisitos)
+  - [🚀 Instalação e Execução Local](#-instalação-e-execução-local)
+    - [1. Clonar o Repositório](#1-clonar-o-repositório)
+    - [2. Instalar Dependências do Frontend](#2-instalar-dependências-do-frontend)
+    - [3. Executar em Modo de Desenvolvimento](#3-executar-em-modo-de-desenvolvimento)
+    - [4. Compilar para Produção](#4-compilar-para-produção)
+  - [🐳 Ambiente de Testes SQL Server (Docker)](#-ambiente-de-testes-sql-server-docker)
+  - [🔄 Pipeline de CI/CD e Releases](#-pipeline-de-cicd-e-releases)
+  - [🤝 Padrão de Contribuição](#-padrão-de-contribuição)
+  - [📄 Licença](#-licença)
 
 ---
 
@@ -97,7 +104,7 @@ Para compilar e executar o SchemaLens localmente, você precisará de:
 
 ### 1. Clonar o Repositório
 ```bash
-git clone https://github.com/erickalvarez/schema-lens.git
+git clone https://github.com/ErickG123/schema-lens.git
 cd schema-lens
 ```
 
