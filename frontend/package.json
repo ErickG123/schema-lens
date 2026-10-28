@@ -7,7 +7,7 @@
     "start": "ng serve",
     "build": "ng build",
     "watch": "ng build --watch --configuration development",
-    "test": "tsx --test \"src/app/**/*.spec.ts\""
+    "test": "tsx --test src/app/core/services/ipc.service.spec.ts src/app/features/diagram/services/diagram-builder.service.spec.ts src/app/features/history/services/comparison-history.service.spec.ts src/app/features/impact-analysis/services/impact-analysis.service.spec.ts src/app/features/inspection/services/object-inspection.service.spec.ts"
   },
   "dependencies": {
     "@angular/animations": "^19.0.0",
