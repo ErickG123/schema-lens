@@ -12,7 +12,8 @@ import { DiffSeverity, DiffViewRow } from '../models/comparison.model';
 export class DiffResultsComponent implements OnChanges {
   @Input() diffs: DiffViewRow[] = [];
   @Input() hasRun = false;
-  @Output() onInspect = new EventEmitter<string>();
+  @Input() totalDiffCount = 0;
+  @Output() onInspect = new EventEmitter<DiffViewRow>();
   @Output() onExportSql = new EventEmitter<DiffViewRow>();
   selectedSql: DiffViewRow | null = null;
   copiedSql = false;

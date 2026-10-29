@@ -301,8 +301,27 @@ async fn run_comparison(
                     "available".to_string(),
                     operation.is_destructive,
                 ),
-                Err(reason) => (None, Some(reason), "unavailable".to_string(), false),
+                Err(reason) => (
+                    None,
+                    Some(reason),
+                    if !d.can_generate_sql {
+                        "unsupported".to_string()
+                    } else {
+                        "unavailable".to_string()
+                    },
+                    false,
+                ),
             };
+            let operation_type = d.operation_type().as_str().to_string();
+            let object_type_code = d.object_type.as_str().to_string();
+            let difference_kind = d.category.as_str().to_string();
+            let risk_level = match d.severity {
+                schema_lens_domain::DifferenceSeverity::Critical => "critical",
+                schema_lens_domain::DifferenceSeverity::Medium => "medium",
+                schema_lens_domain::DifferenceSeverity::Low => "low",
+                schema_lens_domain::DifferenceSeverity::Info => "unclassified",
+            }
+            .to_string();
             DiffItemDto {
                 id: d.id,
                 object_type: Some(format!("{:?}", d.object_type)),
@@ -327,6 +346,10 @@ async fn run_comparison(
                     _ => "Diferen\u{00e7}a",
                 }
                 .into(),
+                operation_type,
+                object_type_code,
+                difference_kind,
+                risk_level,
                 property_name: d.property_name,
                 value_source: d.value_source.unwrap_or_else(|| "Absent".into()),
                 value_target: d.value_target.unwrap_or_else(|| "Absent".into()),

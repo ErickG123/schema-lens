@@ -1,47 +1,61 @@
-<div class="toolbar-container">
-  <div class="filter-group">
-    <input 
-      type="text" 
-      class="form-control search-input" 
-      [(ngModel)]="searchQuery" 
-      (ngModelChange)="searchQueryChange.emit(searchQuery)"
-      placeholder="Pesquisar por tabela, coluna, constraint, schema...">
-    
-    <select 
-      class="form-control select-input" 
-      [(ngModel)]="selectedCategory" 
-      (ngModelChange)="selectedCategoryChange.emit(selectedCategory)">
-      <option value="all">Todas as Categorias</option>
-      <option value="missing_in_target">Ausentes no Destino (Apenas A)</option>
-      <option value="missing_in_source">Ausentes na Origem (Apenas B)</option>
-      <option value="property_mismatch">Divergências Estruturais / DDL</option>
-    </select>
+<section class="toolbar-container" aria-label="Filtros de diferenças">
+  <div class="toolbar-main">
+    <div class="filter-area">
+      <label class="sr-only" for="difference-search">Pesquisar diferenças</label>
+      <input
+        id="difference-search"
+        type="search"
+        class="form-control search-input"
+        [ngModel]="filters.query"
+        (ngModelChange)="updateQuery($event)"
+        placeholder="Pesquisar schema, tabela, coluna ou ID"
+        autocomplete="off">
+
+      <div class="filter-groups" aria-label="Filtros adicionais">
+        <details *ngFor="let group of groups" class="filter-popover">
+          <summary>{{ group.title }}<span *ngIf="filters[group.key].length" class="selected-count">{{ filters[group.key].length }}</span></summary>
+          <fieldset class="filter-options" [attr.aria-label]="group.title">
+            <legend class="sr-only">{{ group.title }}</legend>
+            <label *ngIf="group.key === 'operationTypes'" class="filter-option select-all-option">
+              <input type="checkbox" [checked]="filters.operationTypes.length === group.options.length && group.options.length > 0" (change)="selectAllOperations($any($event.target).checked)">
+              <span>Selecionar todas</span>
+              <small>{{ group.options.length }}</small>
+            </label>
+            <label *ngFor="let option of group.options; trackBy: trackByValue" class="filter-option">
+              <input type="checkbox" [checked]="isSelected(group.key, option.value)" (change)="toggle(group.key, option.value, $any($event.target).checked)">
+              <span>{{ option.label }}</span>
+              <small>{{ option.count }}</small>
+            </label>
+          </fieldset>
+        </details>
+      </div>
+    </div>
+
+    <div class="action-group">
+      <button type="button" class="btn btn-secondary" [disabled]="!hasRun || totalCount === 0" (click)="onExportSql.emit()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>
+        </svg>
+        Gerar script completo
+      </button>
+      <button type="button" class="btn btn-secondary" [disabled]="!hasRun || totalCount === 0" (click)="onExportJson.emit()">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line>
+        </svg>
+        Exportar JSON
+      </button>
+    </div>
   </div>
 
-  <div class="action-group">
-    <button 
-      type="button" 
-      class="btn btn-secondary" 
-      [disabled]="diffCount === 0" 
-      (click)="onExportSql.emit()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <polyline points="16 18 22 12 16 6"></polyline>
-        <polyline points="8 6 2 12 8 18"></polyline>
-      </svg>
-      Gerar Script .SQL
-    </button>
+  <div class="filter-status" aria-live="polite">
+    <span>Exibindo <strong>{{ filteredCount }}</strong> de <strong>{{ totalCount }}</strong> diferenças</span>
+    <span class="filter-logic">Dentro de cada filtro: OU · Entre filtros: E</span>
+    <button *ngIf="activeChips.length" type="button" class="clear-filters" (click)="clearFilters()">Limpar filtros</button>
+  </div>
 
-    <button 
-      type="button" 
-      class="btn btn-secondary" 
-      [disabled]="diffCount === 0" 
-      (click)="onExportJson.emit()">
-      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
-        <polyline points="7 10 12 15 17 10"></polyline>
-        <line x1="12" y1="15" x2="12" y2="3"></line>
-      </svg>
-      Exportar JSON
+  <div *ngIf="activeChips.length" class="active-chips" aria-label="Filtros ativos">
+    <button *ngFor="let chip of activeChips; let i = index" type="button" class="filter-chip" [attr.aria-label]="'Remover filtro ' + chip.label" (click)="removeChip(chip)">
+      {{ chip.label }} <span aria-hidden="true">×</span>
     </button>
   </div>
-</div>
+</section>

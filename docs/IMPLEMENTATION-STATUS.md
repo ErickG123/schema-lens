@@ -46,6 +46,7 @@ Status geral das fases do projeto de acordo com a orquestração (`schemalens-pr
 | 42 | SQL Generator and per-difference integration | IN_PROGRESS | `docs/reports/PHASE-42-sql-generator-and-diff-integration.md` |
 | 43 | Connection settings modal and header refactor | IN_PROGRESS | `docs/reports/PHASE-43-44-connection-modal-persistence.md` |
 | 44 | Local SQLite persistence for SQL Server connections | IN_PROGRESS | `docs/reports/PHASE-43-44-connection-modal-persistence.md` |
+| 45 | Advanced schema difference filters | DONE | `docs/reports/PHASE-45-advanced-difference-filters.md` |
 
 
 Last updated: 2026-10-29

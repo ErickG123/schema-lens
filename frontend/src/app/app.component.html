@@ -43,15 +43,19 @@
   <section class="main-viewport">
     <div class="view-panel" [style.display]="activeView === 'table' ? 'flex' : 'none'">
       <app-comparison-toolbar
-        [(searchQuery)]="filterQuery"
-        [(selectedCategory)]="selectedCategory"
-        [diffCount]="filteredDiffs.length"
+        [filters]="diffFilters"
+        [filterOptions]="diffFilterOptions"
+        [filteredCount]="filteredDiffs.length"
+        [totalCount]="diffs.length"
+        [hasRun]="hasRun"
+        (filtersChange)="onDiffFiltersChange($event)"
         (onExportSql)="exportSql()"
         (onExportJson)="exportJson()">
       </app-comparison-toolbar>
       <app-diff-results
         [diffs]="filteredDiffs"
         [hasRun]="hasRun"
+        [totalDiffCount]="diffs.length"
         (onInspect)="onInspectObject($event)"
         (onExportSql)="exportIndividualSql($event)">
       </app-diff-results>

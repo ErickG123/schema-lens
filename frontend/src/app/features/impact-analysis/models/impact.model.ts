@@ -14,7 +14,7 @@ export interface MigrationRiskAlert {
   differenceId?: string;
   generatedSql?: string | null;
   sqlUnavailableReason?: string | null;
-  sqlStatus?: 'available' | 'unavailable';
+  sqlStatus?: 'available' | 'unavailable' | 'unsupported' | 'unknown';
   category?: 'structural' | 'data' | 'compatibility' | 'availability' | 'integrity' | 'unknown';
   severity: ImpactRiskSeverity;
   affectedObject: string;

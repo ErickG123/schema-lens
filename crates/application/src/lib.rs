@@ -79,6 +79,14 @@ pub struct DiffItemDto {
     #[serde(rename = "objectName")]
     pub object_name: String,
     pub category: String,
+    #[serde(default, rename = "operationType")]
+    pub operation_type: String,
+    #[serde(default, rename = "objectTypeCode")]
+    pub object_type_code: String,
+    #[serde(default, rename = "differenceKind")]
+    pub difference_kind: String,
+    #[serde(default, rename = "riskLevel")]
+    pub risk_level: String,
     #[serde(default, rename = "propertyName")]
     pub property_name: Option<String>,
     #[serde(rename = "valueSource")]

@@ -6,8 +6,9 @@ import { ConnectionFormState, ConnectionSettingsApplied, SavedConnection } from 
 import { mapSavedConnection } from './features/connections/models/connection-settings.utils';
 import { ComparisonToolbarComponent } from './features/comparison/components/comparison-toolbar.component';
 import { DiffResultsComponent } from './features/comparison/components/diff-results.component';
-import { ComparisonReport, ComparisonResultDto, DiffViewRow } from './features/comparison/models/comparison.model';
+import { ComparisonReport, ComparisonResultDto, DifferenceFilters, DiffViewRow } from './features/comparison/models/comparison.model';
 import { SnapshotTable } from './features/comparison/models/snapshot.model';
+import { DifferenceFilterService, emptyDifferenceFilters } from './features/comparison/services/difference-filter.service';
 import { ErDiagramComponent } from './features/diagram/components/er-diagram.component';
 import { ObjectDetailPanelComponent } from './features/inspection/components/object-detail-panel.component';
 import { DetailedObjectInspection } from './features/inspection/models/inspection.model';
@@ -45,6 +46,7 @@ export class AppComponent implements OnInit {
   private notify = inject(NotificationService);
   private inspectionService = inject(ObjectInspectionService);
   private historyService = inject(ComparisonHistoryService);
+  private differenceFilter = inject(DifferenceFilterService);
 
   @ViewChild('erDiagram') erDiagramComponent?: ErDiagramComponent;
   @ViewChild('settingsButton') private settingsButton?: ElementRef<HTMLButtonElement>;
@@ -84,8 +86,7 @@ export class AppComponent implements OnInit {
   exporting = false;
   hasRun = false;
 
-  filterQuery = '';
-  selectedCategory = 'all';
+  diffFilters: DifferenceFilters = emptyDifferenceFilters();
 
   diffs: DiffViewRow[] = [];
   sourceTables: SnapshotTable[] = [];
@@ -125,8 +126,7 @@ export class AppComponent implements OnInit {
       this.targetTables = [];
       this.activeInspection = null;
       this.hasRun = false;
-      this.filterQuery = '';
-      this.selectedCategory = 'all';
+      this.diffFilters = emptyDifferenceFilters();
       this.notify.info('Comparação invalidada', 'As conexões mudaram. Execute uma nova comparação para atualizar os resultados.');
     }
   }
@@ -141,19 +141,15 @@ export class AppComponent implements OnInit {
   }
 
   get filteredDiffs(): DiffViewRow[] {
-    return this.diffs.filter(d => {
-      const matchText = !this.filterQuery || 
-        d.objectName.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
-        d.schema.toLowerCase().includes(this.filterQuery.toLowerCase()) ||
-        d.details.toLowerCase().includes(this.filterQuery.toLowerCase());
-      
-      const matchCat = this.selectedCategory === 'all' || 
-        (this.selectedCategory === 'missing_in_target' && d.category.includes('Destino')) ||
-        (this.selectedCategory === 'missing_in_source' && d.category.includes('Origem')) ||
-        (this.selectedCategory === 'property_mismatch' && (d.category.includes('Divergência') || d.category.includes('Propriedade')));
+    return this.differenceFilter.filter(this.diffs, this.diffFilters);
+  }
 
-      return matchText && matchCat;
-    });
+  get diffFilterOptions() {
+    return this.differenceFilter.getOptions(this.diffs);
+  }
+
+  onDiffFiltersChange(filters: DifferenceFilters): void {
+    this.diffFilters = filters;
   }
 
   async runComparison() {
@@ -170,8 +166,7 @@ export class AppComponent implements OnInit {
     this.sourceTables = [];
     this.targetTables = [];
     this.activeInspection = null;
-    this.filterQuery = '';
-    this.selectedCategory = 'all';
+    this.diffFilters = emptyDifferenceFilters();
     try {
       const identitiesConfirmed = await this.ensureConnectionIdentities();
       if (!identitiesConfirmed) return;
@@ -243,8 +238,8 @@ export class AppComponent implements OnInit {
       authType: 'sql', username: '', password: '', trustServerCertificate: false, testStatus: 'idle'
     };
   }
-  onInspectObject(objectName: string): void {
-    this.activeInspection = this.inspectionService.inspectObject(objectName);
+  onInspectObject(difference: DiffViewRow): void {
+    this.activeInspection = this.inspectionService.inspectObject(`${difference.schema}.${difference.objectName}`);
   }
 
   onImpactNavigate(objectIdentifier: string): void {
@@ -252,13 +247,13 @@ export class AppComponent implements OnInit {
     setTimeout(() => this.erDiagramComponent?.selectObject(objectIdentifier), 50);
   }
   onDiagramTableSelected(tableId: string): void {
-    this.filterQuery = tableId;
+    this.diffFilters = { ...this.diffFilters, query: tableId };
     this.activeInspection = this.inspectionService.inspectObject(tableId);
     this.notify.info('Objeto Selecionado', `Inspeção detalhada aberta para ${tableId}`);
   }
 
   onDiagramOpenDiffs(tableId: string): void {
-    this.filterQuery = tableId;
+    this.diffFilters = { ...this.diffFilters, query: tableId };
     this.activeView = 'table';
     this.notify.info('Navegação para Diferenças', `Filtro aplicado para exibir discrepâncias de ${tableId}`);
   }
@@ -268,6 +263,7 @@ export class AppComponent implements OnInit {
     this.sourceTables = [];
     this.targetTables = [];
     this.hasRun = true;
+    this.diffFilters = emptyDifferenceFilters();
     this.activeView = 'table';
     this.notify.info('Snapshot Restaurado', `Carregadas ${diffs.length} diferenças históricas.`);
   }

@@ -3,7 +3,7 @@
   <div *ngIf="hasRun" class="summary-deck">
     <div class="summary-tile tile-total">
       <div class="tile-number">{{ diffs.length }}</div>
-      <div class="tile-caption">Total de Diferenças</div>
+      <div class="tile-caption">Diferenças no filtro</div>
     </div>
     <div class="summary-tile tile-critical">
       <div class="tile-number">{{ countSeverity('CRÍTICA') }}</div>
@@ -49,7 +49,7 @@
           </td>
         </tr>
 
-        <tr *ngIf="hasRun && diffs.length === 0">
+        <tr *ngIf="hasRun && totalDiffCount === 0">
           <td colspan="8" class="empty-state">
             <div class="empty-content success-content">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -62,7 +62,16 @@
           </td>
         </tr>
 
-        <tr *ngFor="let row of diffs" class="diff-row" (click)="onInspect.emit(row.objectName)" style="cursor: pointer;" title="Clique para abrir a inspeção detalhada do objeto">
+        <tr *ngIf="hasRun && totalDiffCount > 0 && diffs.length === 0">
+          <td colspan="8" class="empty-state">
+            <div class="empty-content">
+              <p class="empty-title">Nenhuma diferença corresponde aos filtros</p>
+              <p class="empty-desc">Altere ou limpe os filtros para voltar a exibir resultados.</p>
+            </div>
+          </td>
+        </tr>
+
+        <tr *ngFor="let row of diffs" class="diff-row" (click)="onInspect.emit(row)" style="cursor: pointer;" title="Clique para abrir a inspeção detalhada do objeto">
           <td>
             <span class="severity-badge" [ngClass]="getSeverityClass(row.severity)">
               {{ row.severity }}
