@@ -556,11 +556,19 @@ impl DiffEngine {
                         property_name: Some("definition".to_string()),
                         value_source: Some(format!(
                             "Ref: {}.{} Del: {} Update: {} Disabled: {}",
-                            sfk.referenced_schema, sfk.referenced_table, sfk.delete_rule, sfk.update_rule, sfk.is_disabled
+                            sfk.referenced_schema,
+                            sfk.referenced_table,
+                            sfk.delete_rule,
+                            sfk.update_rule,
+                            sfk.is_disabled
                         )),
                         value_target: Some(format!(
                             "Ref: {}.{} Del: {} Update: {} Disabled: {}",
-                            tfk.referenced_schema, tfk.referenced_table, tfk.delete_rule, tfk.update_rule, tfk.is_disabled
+                            tfk.referenced_schema,
+                            tfk.referenced_table,
+                            tfk.delete_rule,
+                            tfk.update_rule,
+                            tfk.is_disabled
                         )),
                         severity: DifferenceSeverity::Critical,
                         confidence: ConfidenceStatus::High,
@@ -728,8 +736,14 @@ impl DiffEngine {
                         object_name: format!("{}.{}", src_table.id.name, sc.name),
                         category: DifferenceCategory::PropertyMismatch,
                         property_name: Some("definition".to_string()),
-                        value_source: Some(format!("{}; disabled={}", sc.definition, sc.is_disabled)),
-                        value_target: Some(format!("{}; disabled={}", tc.definition, tc.is_disabled)),
+                        value_source: Some(format!(
+                            "{}; disabled={}",
+                            sc.definition, sc.is_disabled
+                        )),
+                        value_target: Some(format!(
+                            "{}; disabled={}",
+                            tc.definition, tc.is_disabled
+                        )),
                         severity: DifferenceSeverity::Medium,
                         confidence: ConfidenceStatus::High,
                         explanation: format!(

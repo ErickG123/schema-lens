@@ -15,10 +15,10 @@ async fn test_real_sqlserver_docker_end_to_end_diff_and_readonly() {
         return;
     };
     // 1. Parse de connection strings
-    let parsed_src =
-        DotnetConnParser::parse(&source_conn_str).expect("Failed to parse source connection string");
-    let parsed_tgt =
-        DotnetConnParser::parse(&target_conn_str).expect("Failed to parse target connection string");
+    let parsed_src = DotnetConnParser::parse(&source_conn_str)
+        .expect("Failed to parse source connection string");
+    let parsed_tgt = DotnetConnParser::parse(&target_conn_str)
+        .expect("Failed to parse target connection string");
 
     // 2. Testar conectividade real com os dois servidores Docker
     let ver_src = SqlServerReader::test_connection(&parsed_src)

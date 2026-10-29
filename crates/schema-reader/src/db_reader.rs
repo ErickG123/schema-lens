@@ -24,8 +24,14 @@ impl SqlServerReader {
             .into_row().await.map_err(|e| e.to_string())?
             .ok_or_else(|| "SQL Server returned no connection identity".to_string())?;
         Ok(ConnectionIdentity {
-            server_name: row.get::<&str, _>("server_name").unwrap_or("unknown server").to_string(),
-            database_name: row.get::<&str, _>("database_name").unwrap_or("unknown database").to_string(),
+            server_name: row
+                .get::<&str, _>("server_name")
+                .unwrap_or("unknown server")
+                .to_string(),
+            database_name: row
+                .get::<&str, _>("database_name")
+                .unwrap_or("unknown database")
+                .to_string(),
             machine_name: row.get::<&str, _>("machine_name").map(str::to_string),
         })
     }
@@ -92,16 +98,16 @@ impl SqlServerReader {
             .map_err(|e| e.to_string())?
             .ok_or_else(|| "Database not found in sys.databases".to_string())?;
 
-        let db_name: &str = db_row
-            .get("db_name")
-            .ok_or_else(|| "SQL Server did not return DB_NAME(); snapshot identity is indeterminate".to_string())?;
+        let db_name: &str = db_row.get("db_name").ok_or_else(|| {
+            "SQL Server did not return DB_NAME(); snapshot identity is indeterminate".to_string()
+        })?;
         let effective_server_name: &str = db_row.get("server_name").unwrap_or(&info.server);
-        let collation: &str = db_row
-            .get("collation_name")
-            .ok_or_else(|| "Database collation is not visible; snapshot is incomplete".to_string())?;
-        let comp_level: u8 = db_row
-            .get("compatibility_level")
-            .ok_or_else(|| "Database compatibility level is not visible; snapshot is incomplete".to_string())?;
+        let collation: &str = db_row.get("collation_name").ok_or_else(|| {
+            "Database collation is not visible; snapshot is incomplete".to_string()
+        })?;
+        let comp_level: u8 = db_row.get("compatibility_level").ok_or_else(|| {
+            "Database compatibility level is not visible; snapshot is incomplete".to_string()
+        })?;
 
         // 2. Version
         let ver_row = client
@@ -281,12 +287,23 @@ impl SqlServerReader {
         )).await.map_err(|e| format!("Failed to read key constraints: {e}"))?
             .into_first_result().await.map_err(|e| e.to_string())?;
         for row in key_rows {
-            let name = row.get::<&str, _>("constraint_name").unwrap_or("").to_string();
+            let name = row
+                .get::<&str, _>("constraint_name")
+                .unwrap_or("")
+                .to_string();
             let kind = row.get::<&str, _>("constraint_type").unwrap_or("");
             let column = row.get::<&str, _>("column_name").unwrap_or("").to_string();
             let clustered = row.get::<bool, _>("is_clustered").unwrap_or(false);
-            let keys = if kind == "PK" { &mut table.primary_key } else { continue };
-            let key = keys.get_or_insert(KeyConstraintMetadata { name, is_clustered: clustered, columns: Vec::new() });
+            let keys = if kind == "PK" {
+                &mut table.primary_key
+            } else {
+                continue;
+            };
+            let key = keys.get_or_insert(KeyConstraintMetadata {
+                name,
+                is_clustered: clustered,
+                columns: Vec::new(),
+            });
             key.columns.push(column);
         }
 
@@ -295,13 +312,24 @@ impl SqlServerReader {
         )).await.map_err(|e| format!("Failed to read unique constraints: {e}"))?
             .into_first_result().await.map_err(|e| e.to_string())?;
         for row in unique_rows {
-            let name = row.get::<&str, _>("constraint_name").unwrap_or("").to_string();
+            let name = row
+                .get::<&str, _>("constraint_name")
+                .unwrap_or("")
+                .to_string();
             let clustered = row.get::<bool, _>("is_clustered").unwrap_or(false);
             let column = row.get::<&str, _>("column_name").unwrap_or("").to_string();
-            if let Some(key) = table.unique_constraints.iter_mut().find(|key| key.name == name) {
+            if let Some(key) = table
+                .unique_constraints
+                .iter_mut()
+                .find(|key| key.name == name)
+            {
                 key.columns.push(column);
             } else {
-                table.unique_constraints.push(KeyConstraintMetadata { name, is_clustered: clustered, columns: vec![column] });
+                table.unique_constraints.push(KeyConstraintMetadata {
+                    name,
+                    is_clustered: clustered,
+                    columns: vec![column],
+                });
             }
         }
 
@@ -311,7 +339,10 @@ impl SqlServerReader {
             .into_first_result().await.map_err(|e| e.to_string())?;
         for row in default_rows {
             table.default_constraints.push(DefaultConstraintMetadata {
-                name: row.get::<&str, _>("constraint_name").unwrap_or("").to_string(),
+                name: row
+                    .get::<&str, _>("constraint_name")
+                    .unwrap_or("")
+                    .to_string(),
                 column_name: row.get::<&str, _>("column_name").unwrap_or("").to_string(),
                 definition: row.get::<&str, _>("definition").unwrap_or("").to_string(),
             });
@@ -334,10 +365,26 @@ impl SqlServerReader {
         )).await.map_err(|e| format!("Failed to read foreign keys: {e}"))?
             .into_first_result().await.map_err(|e| e.to_string())?;
         for row in fk_rows {
-            let name = row.get::<&str, _>("constraint_name").unwrap_or("").to_string();
-            let referenced_schema = row.get::<&str, _>("referenced_schema").unwrap_or("").to_string();
-            let referenced_table = row.get::<&str, _>("referenced_table").unwrap_or("").to_string();
-            let mapping = (row.get::<&str, _>("parent_column").unwrap_or("").to_string(), row.get::<&str, _>("referenced_column").unwrap_or("").to_string());
+            let name = row
+                .get::<&str, _>("constraint_name")
+                .unwrap_or("")
+                .to_string();
+            let referenced_schema = row
+                .get::<&str, _>("referenced_schema")
+                .unwrap_or("")
+                .to_string();
+            let referenced_table = row
+                .get::<&str, _>("referenced_table")
+                .unwrap_or("")
+                .to_string();
+            let mapping = (
+                row.get::<&str, _>("parent_column")
+                    .unwrap_or("")
+                    .to_string(),
+                row.get::<&str, _>("referenced_column")
+                    .unwrap_or("")
+                    .to_string(),
+            );
             if let Some(fk) = table.foreign_keys.iter_mut().find(|fk| fk.name == name) {
                 fk.column_mappings.push(mapping);
             } else {
@@ -346,8 +393,14 @@ impl SqlServerReader {
                     referenced_schema,
                     referenced_table,
                     column_mappings: vec![mapping],
-                    delete_rule: row.get::<&str, _>("delete_rule").unwrap_or("NO_ACTION").to_string(),
-                    update_rule: row.get::<&str, _>("update_rule").unwrap_or("NO_ACTION").to_string(),
+                    delete_rule: row
+                        .get::<&str, _>("delete_rule")
+                        .unwrap_or("NO_ACTION")
+                        .to_string(),
+                    update_rule: row
+                        .get::<&str, _>("update_rule")
+                        .unwrap_or("NO_ACTION")
+                        .to_string(),
                     is_disabled: row.get::<bool, _>("is_disabled").unwrap_or(false),
                 });
             }
@@ -362,13 +415,21 @@ impl SqlServerReader {
             let column = row.get::<&str, _>("column_name").unwrap_or("").to_string();
             let included = row.get::<bool, _>("is_included_column").unwrap_or(false);
             if let Some(index) = table.indexes.iter_mut().find(|index| index.name == name) {
-                if included { index.included_columns.push(column); } else { index.key_columns.push(column); }
+                if included {
+                    index.included_columns.push(column);
+                } else {
+                    index.key_columns.push(column);
+                }
             } else {
                 table.indexes.push(IndexMetadata {
                     name,
                     is_unique: row.get::<bool, _>("is_unique").unwrap_or(false),
                     is_clustered: row.get::<bool, _>("is_clustered").unwrap_or(false),
-                    key_columns: if included { Vec::new() } else { vec![column.clone()] },
+                    key_columns: if included {
+                        Vec::new()
+                    } else {
+                        vec![column.clone()]
+                    },
                     included_columns: if included { vec![column] } else { Vec::new() },
                     filter_definition: row.get::<&str, _>("filter_definition").map(str::to_string),
                 });

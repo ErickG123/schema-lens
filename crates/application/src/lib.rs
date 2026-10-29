@@ -98,7 +98,9 @@ impl AppService {
         payload: TestConnectionPayload,
     ) -> Result<TestConnectionResult, String> {
         if payload.mode != "file" {
-            return Err("SQL Server connection checks are handled by the Tauri SQL reader.".to_string());
+            return Err(
+                "SQL Server connection checks are handled by the Tauri SQL reader.".to_string(),
+            );
         }
         let path = payload.file_path.unwrap_or_default();
         if path.is_empty() {
