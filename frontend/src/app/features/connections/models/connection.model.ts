@@ -11,6 +11,8 @@ export interface ConnectionFormState {
   filePath?: string;
   testStatus?: 'idle' | 'testing' | 'success' | 'error';
   errorMessage?: string;
+  confirmedIdentity?: string;
+  confirmedDatabaseName?: string;
 }
 
 export interface ComparisonDashboardState {

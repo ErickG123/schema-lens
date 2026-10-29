@@ -15,6 +15,7 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import cytoscape, { Core } from 'cytoscape';
 import { DiffViewRow } from '../../comparison/models/comparison.model';
+import { SnapshotTable } from '../../comparison/models/snapshot.model';
 import { DiagramFilterCategory, DiagramMode, DiagramStats, NodeDiffStatus, TableNodeData } from '../models/diagram.model';
 import { DiagramBuilderService } from '../services/diagram-builder.service';
 
@@ -27,6 +28,8 @@ import { DiagramBuilderService } from '../services/diagram-builder.service';
 })
 export class ErDiagramComponent implements AfterViewInit, OnChanges, OnDestroy {
   @Input() diffs: DiffViewRow[] = [];
+  @Input() sourceTables: SnapshotTable[] = [];
+  @Input() targetTables: SnapshotTable[] = [];
   @Input() currentMode: DiagramMode = 'diff';
   @Output() onTableSelect = new EventEmitter<string>();
   @Output() onOpenDiffs = new EventEmitter<string>();
@@ -60,7 +63,7 @@ export class ErDiagramComponent implements AfterViewInit, OnChanges, OnDestroy {
   }
 
   ngOnChanges(changes: SimpleChanges): void {
-    if (this.cy && (changes['diffs'] || changes['currentMode'])) {
+    if (this.cy && (changes['diffs'] || changes['currentMode'] || changes['sourceTables'] || changes['targetTables'])) {
       this.refreshGraph();
     }
   }
@@ -111,7 +114,7 @@ export class ErDiagramComponent implements AfterViewInit, OnChanges, OnDestroy {
   private initCytoscape(): void {
     if (!this.cyContainer) return;
 
-    const graphData = this.builder.buildModel(this.currentMode, this.diffs, this.filterCategory);
+    const graphData = this.builder.buildModel(this.currentMode, this.diffs, this.filterCategory, this.sourceTables, this.targetTables);
     this.stats = graphData.stats;
 
     this.cy = cytoscape({
@@ -223,8 +226,9 @@ export class ErDiagramComponent implements AfterViewInit, OnChanges, OnDestroy {
   refreshGraph(): void {
     if (!this.cy) return;
 
-    const graphData = this.builder.buildModel(this.currentMode, this.diffs, this.filterCategory);
+    const graphData = this.builder.buildModel(this.currentMode, this.diffs, this.filterCategory, this.sourceTables, this.targetTables);
     this.stats = graphData.stats;
+    this.selectedTable = null;
     this.cy.elements().remove();
     this.cy.add([...graphData.nodes, ...graphData.edges]);
     this.resetLayout();

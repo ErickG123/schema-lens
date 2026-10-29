@@ -6,14 +6,19 @@ use sql_generator::SqlGenerator;
 
 #[tokio::test]
 async fn test_real_sqlserver_docker_end_to_end_diff_and_readonly() {
-    let source_conn_str = "Server=127.0.0.1,14331;Database=SchemaSource;User Id=sa;Password=\"SchemaLens#2026!LocalDev\";TrustServerCertificate=True;Connect Timeout=15;";
-    let target_conn_str = "Server=127.0.0.1,14332;Database=SchemaTarget;User Id=sa;Password=\"SchemaLens#2026!LocalDev\";TrustServerCertificate=True;Connect Timeout=15;";
-
+    let Ok(source_conn_str) = std::env::var("SCHEMALENS_TEST_SOURCE_CONNECTION_STRING") else {
+        eprintln!("Skipping SQL Server integration: SCHEMALENS_TEST_SOURCE_CONNECTION_STRING is not configured.");
+        return;
+    };
+    let Ok(target_conn_str) = std::env::var("SCHEMALENS_TEST_TARGET_CONNECTION_STRING") else {
+        eprintln!("Skipping SQL Server integration: SCHEMALENS_TEST_TARGET_CONNECTION_STRING is not configured.");
+        return;
+    };
     // 1. Parse de connection strings
     let parsed_src =
-        DotnetConnParser::parse(source_conn_str).expect("Failed to parse source connection string");
+        DotnetConnParser::parse(&source_conn_str).expect("Failed to parse source connection string");
     let parsed_tgt =
-        DotnetConnParser::parse(target_conn_str).expect("Failed to parse target connection string");
+        DotnetConnParser::parse(&target_conn_str).expect("Failed to parse target connection string");
 
     // 2. Testar conectividade real com os dois servidores Docker
     let ver_src = SqlServerReader::test_connection(&parsed_src)

@@ -5,7 +5,8 @@ import { ConnectionPanelComponent } from './features/connections/components/conn
 import { ConnectionFormState } from './features/connections/models/connection.model';
 import { ComparisonToolbarComponent } from './features/comparison/components/comparison-toolbar.component';
 import { DiffResultsComponent } from './features/comparison/components/diff-results.component';
-import { ComparisonReport, DiffViewRow } from './features/comparison/models/comparison.model';
+import { ComparisonReport, ComparisonResultDto, DiffViewRow } from './features/comparison/models/comparison.model';
+import { SnapshotTable } from './features/comparison/models/snapshot.model';
 import { ErDiagramComponent } from './features/diagram/components/er-diagram.component';
 import { ObjectDetailPanelComponent } from './features/inspection/components/object-detail-panel.component';
 import { DetailedObjectInspection } from './features/inspection/models/inspection.model';
@@ -52,26 +53,26 @@ export class AppComponent {
   source: ConnectionFormState = {
     mode: 'online',
     connectionString: '',
-    server: '127.0.0.1,14331',
-    port: 14331,
-    database: 'SchemaSource',
+    server: '',
+    port: 1433,
+    database: '',
     authType: 'sql',
-    username: 'sa',
-    password: 'SchemaLens#2026!LocalDev',
-    trustServerCertificate: true,
+    username: '',
+    password: '',
+    trustServerCertificate: false,
     testStatus: 'idle'
   };
 
   target: ConnectionFormState = {
     mode: 'online',
     connectionString: '',
-    server: '127.0.0.1,14332',
-    port: 14332,
-    database: 'SchemaTarget',
+    server: '',
+    port: 1433,
+    database: '',
     authType: 'sql',
-    username: 'sa',
-    password: 'SchemaLens#2026!LocalDev',
-    trustServerCertificate: true,
+    username: '',
+    password: '',
+    trustServerCertificate: false,
     testStatus: 'idle'
   };
 
@@ -85,6 +86,9 @@ export class AppComponent {
   selectedCategory = 'all';
 
   diffs: DiffViewRow[] = [];
+  sourceTables: SnapshotTable[] = [];
+  targetTables: SnapshotTable[] = [];
+  private comparisonSequence = 0;
 
   toggleSidebar(): void {
     this.sidebarCollapsed = !this.sidebarCollapsed;
@@ -114,7 +118,7 @@ export class AppComponent {
       const matchCat = this.selectedCategory === 'all' || 
         (this.selectedCategory === 'missing_in_target' && d.category.includes('Destino')) ||
         (this.selectedCategory === 'missing_in_source' && d.category.includes('Origem')) ||
-        (this.selectedCategory === 'property_mismatch' && (d.category.includes('Divergência') || d.category.includes('Propriedade')));
+        (this.selectedCategory === 'property_mismatch' && (d.category.includes('DivergÃªncia') || d.category.includes('Propriedade')));
 
       return matchText && matchCat;
     });
@@ -128,14 +132,18 @@ export class AppComponent {
     try {
       const res = await this.ipc.testConnection(config);
       config.testStatus = 'success';
+      config.confirmedIdentity = res?.databaseName ? `${res.serverName || 'Unknown server'} / ${res.databaseName}` : undefined;
+      config.confirmedDatabaseName = res?.databaseName;
       this.notify.success(
-        `Conexão (${side === 'source' ? 'Origem' : 'Destino'})`,
-        res?.message || 'Conexão validada com sucesso.'
+        `ConexÃ£o (${side === 'source' ? 'Origem' : 'Destino'})`,
+        res?.message || 'ConexÃ£o validada com sucesso.'
       );
     } catch (e: any) {
       config.testStatus = 'error';
+      config.confirmedIdentity = undefined;
+      config.confirmedDatabaseName = undefined;
       this.notify.error(
-        `Falha de Conexão (${side === 'source' ? 'Origem' : 'Destino'})`,
+        `Falha de ConexÃ£o (${side === 'source' ? 'Origem' : 'Destino'})`,
         e?.message || String(e)
       );
     } finally {
@@ -145,89 +153,94 @@ export class AppComponent {
   }
 
   async runComparison() {
+    if (this.comparing) return;
+    const sequence = ++this.comparisonSequence;
     this.comparing = true;
+    this.hasRun = false;
+    this.diffs = [];
+    this.sourceTables = [];
+    this.targetTables = [];
+    this.activeInspection = null;
+    this.filterQuery = '';
+    this.selectedCategory = 'all';
     try {
-      const res = await this.ipc.startComparison(this.source, this.target);
-      if (res && res.diffs && res.diffs.length > 0) {
-        this.diffs = res.diffs;
-      } else {
-        this.diffs = [
-          {
-            severity: 'MÉDIA',
-            schema: 'sales',
-            objectName: '[sales].[Discounts]',
-            category: 'Ausente no Destino',
-            valueSource: 'Table (3 cols)',
-            valueTarget: 'Inexistente',
-            details: 'Tabela ausente no banco alvo. Necessária criação.'
-          },
-          {
-            severity: 'CRÍTICA',
-            schema: 'dbo',
-            objectName: '[dbo].[Orders].Status',
-            category: 'Divergência Estrutural',
-            valueSource: 'VARCHAR(20)',
-            valueTarget: 'VARCHAR(10)',
-            details: 'Tamanho menor no destino. Risco de truncamento de dados.'
-          },
-          {
-            severity: 'MÉDIA',
-            schema: 'dbo',
-            objectName: '[dbo].[Orders].Notes',
-            category: 'Ausente no Destino',
-            valueSource: 'NVARCHAR(500) NULL',
-            valueTarget: 'Inexistente',
-            details: 'Coluna ausente no banco alvo.'
-          },
-          {
-            severity: 'BAIXA',
-            schema: 'dbo',
-            objectName: '[dbo].[LegacyLogs]',
-            category: 'Ausente na Origem',
-            valueSource: 'Inexistente',
-            valueTarget: 'Table (3 cols)',
-            details: 'Tabela existe apenas no destino.'
-          }
-        ];
-      }
+      const identitiesConfirmed = await this.ensureConnectionIdentities();
+      if (!identitiesConfirmed) return;
+      const res = await this.ipc.startComparison(this.source, this.target) as ComparisonResultDto;
+      if (sequence !== this.comparisonSequence) return;
+      if (!res?.success || !Array.isArray(res.diffs)) throw new Error('Backend did not return a valid comparison result.');
+      this.diffs = res.diffs;
+      this.sourceTables = res.sourceTables || [];
+      this.targetTables = res.targetTables || [];
       this.hasRun = true;
       this.historyService.saveComparison(
-        `${this.source.server} / ${this.source.database}`,
-        `${this.target.server} / ${this.target.database}`,
-        this.diffs
+        res.sourceIdentity || `${this.source.server} / ${this.source.database}`,
+        res.targetIdentity || `${this.target.server} / ${this.target.database}`,
+        this.diffs,
+        res.comparisonId
       );
-      this.notify.success(
-        'Comparação Concluída & Snapshot Salvo',
-        `Análise finalizada: ${this.diffs.length} discrepâncias identificadas e persistidas no histórico.`
-      );
+      this.notify.success('Comparison complete', res.message);
     } catch (e: any) {
-      this.notify.error('Erro na Comparação', e?.message || String(e));
+      if (sequence !== this.comparisonSequence) return;
+      this.diffs = [];
+      this.hasRun = false;
+      this.notify.error('Comparison failed', e?.message || String(e));
     } finally {
-      this.comparing = false;
+      if (sequence === this.comparisonSequence) this.comparing = false;
     }
   }
 
+  private async ensureConnectionIdentities(): Promise<boolean> {
+    for (const side of ['source', 'target'] as const) {
+      const config = side === 'source' ? this.source : this.target;
+      if (config.testStatus !== 'success') {
+        await this.testConnection(side);
+        if (!this.connectionTestSucceeded(config)) return false;
+      }
+      if (config.confirmedDatabaseName && config.database &&
+          config.confirmedDatabaseName.toLocaleLowerCase() !== config.database.toLocaleLowerCase()) {
+        const accepted = await this.notify.confirm({
+          title: 'Database identity differs',
+          message: `Selected '${config.database}', but SQL Server confirmed '${config.confirmedDatabaseName}' (${config.confirmedIdentity}). Continue with the confirmed database?`,
+          confirmLabel: 'Continue',
+          cancelLabel: 'Cancel'
+        });
+        if (!accepted) return false;
+      }
+    }
+    return true;
+  }
+
+  private connectionTestSucceeded(config: ConnectionFormState): boolean {
+    return config.testStatus === 'success';
+  }
   onInspectObject(objectName: string): void {
     this.activeInspection = this.inspectionService.inspectObject(objectName);
   }
 
+  onImpactNavigate(objectIdentifier: string): void {
+    this.activeView = 'diagram';
+    setTimeout(() => this.erDiagramComponent?.selectObject(objectIdentifier), 50);
+  }
   onDiagramTableSelected(tableId: string): void {
     this.filterQuery = tableId;
     this.activeInspection = this.inspectionService.inspectObject(tableId);
-    this.notify.info('Objeto Selecionado', `Inspeção detalhada aberta para ${tableId}`);
+    this.notify.info('Objeto Selecionado', `InspeÃ§Ã£o detalhada aberta para ${tableId}`);
   }
 
   onDiagramOpenDiffs(tableId: string): void {
     this.filterQuery = tableId;
     this.activeView = 'table';
-    this.notify.info('Navegação para Diferenças', `Filtro aplicado para exibir discrepâncias de ${tableId}`);
+    this.notify.info('NavegaÃ§Ã£o para DiferenÃ§as', `Filtro aplicado para exibir discrepÃ¢ncias de ${tableId}`);
   }
 
   onRestoreSnapshot(diffs: DiffViewRow[]): void {
     this.diffs = diffs;
+    this.sourceTables = [];
+    this.targetTables = [];
     this.hasRun = true;
     this.activeView = 'table';
-    this.notify.info('Snapshot Restaurado', `Carregadas ${diffs.length} diferenças históricas.`);
+    this.notify.info('Snapshot Restaurado', `Carregadas ${diffs.length} diferenÃ§as histÃ³ricas.`);
   }
 
   private generateTimestamp(): string {
@@ -238,11 +251,20 @@ export class AppComponent {
 
   async exportSql() {
     if (!this.hasRun || this.diffs.length === 0) {
-      this.notify.warning('Exportação SQL', 'Execute uma comparação antes de gerar o script de migração.');
+      this.notify.warning('ExportaÃ§Ã£o SQL', 'Execute uma comparaÃ§Ã£o antes de gerar o script de migraÃ§Ã£o.');
       return;
     }
 
     if (this.exporting) return;
+    if (this.diffs.some(diff => diff.category.includes('Ausente na Origem'))) {
+      const accepted = await this.notify.confirm({
+        title: 'Review destination-only objects',
+        message: 'This comparison contains objects present only in the destination. Review each object and its dependencies before exporting a script.',
+        confirmLabel: 'Review and continue',
+        cancelLabel: 'Cancel'
+      });
+      if (!accepted) return;
+    }
     this.exporting = true;
 
     try {
@@ -250,20 +272,20 @@ export class AppComponent {
       const filePath = await this.ipc.promptSaveFilePath(defaultFileName, 'Arquivo SQL', 'sql');
 
       if (!filePath) {
-        this.notify.info('Exportação Cancelada', 'Operação cancelada pelo usuário.');
+        this.notify.info('ExportaÃ§Ã£o Cancelada', 'OperaÃ§Ã£o cancelada pelo usuÃ¡rio.');
         return;
       }
 
-      const sqlContent = await this.ipc.generateSql(this.target.database || 'SchemaTarget');
+      const sqlContent = await this.ipc.generateSql();
       const saveResult = await this.ipc.saveFile(filePath, sqlContent);
 
       if (saveResult.saved) {
         this.notify.success('Script SQL Exportado', saveResult.message);
       } else {
-        this.notify.warning('Exportação não Concluída', saveResult.message);
+        this.notify.warning('ExportaÃ§Ã£o nÃ£o ConcluÃ­da', saveResult.message);
       }
     } catch (e: any) {
-      this.notify.error('Falha na Gravação SQL', e?.message || String(e));
+      this.notify.error('Falha na GravaÃ§Ã£o SQL', e?.message || String(e));
     } finally {
       this.exporting = false;
     }
@@ -271,7 +293,7 @@ export class AppComponent {
 
   async exportJson() {
     if (!this.hasRun || this.diffs.length === 0) {
-      this.notify.warning('Exportação JSON', 'Execute uma comparação antes de exportar o relatório.');
+      this.notify.warning('ExportaÃ§Ã£o JSON', 'Execute uma comparaÃ§Ã£o antes de exportar o relatÃ³rio.');
       return;
     }
 
@@ -283,7 +305,7 @@ export class AppComponent {
       const filePath = await this.ipc.promptSaveFilePath(defaultFileName, 'Arquivo JSON', 'json');
 
       if (!filePath) {
-        this.notify.info('Exportação Cancelada', 'Operação cancelada pelo usuário.');
+        this.notify.info('ExportaÃ§Ã£o Cancelada', 'OperaÃ§Ã£o cancelada pelo usuÃ¡rio.');
         return;
       }
 
@@ -304,8 +326,8 @@ export class AppComponent {
         },
         summary: {
           totalDifferences: this.diffs.length,
-          criticalSeverity: this.diffs.filter(d => d.severity === 'CRÍTICA').length,
-          mediumSeverity: this.diffs.filter(d => d.severity === 'MÉDIA').length,
+          criticalSeverity: this.diffs.filter(d => d.severity === 'CR\u00CDTICA').length,
+          mediumSeverity: this.diffs.filter(d => d.severity === 'M\u00C9DIA').length,
           lowSeverity: this.diffs.filter(d => d.severity === 'BAIXA').length
         },
         differences: this.diffs
@@ -315,12 +337,12 @@ export class AppComponent {
       const saveResult = await this.ipc.saveFile(filePath, jsonContent);
 
       if (saveResult.saved) {
-        this.notify.success('Relatório JSON Exportado', saveResult.message);
+        this.notify.success('RelatÃ³rio JSON Exportado', saveResult.message);
       } else {
-        this.notify.warning('Exportação não Concluída', saveResult.message);
+        this.notify.warning('ExportaÃ§Ã£o nÃ£o ConcluÃ­da', saveResult.message);
       }
     } catch (e: any) {
-      this.notify.error('Falha na Gravação JSON', e?.message || String(e));
+      this.notify.error('Falha na GravaÃ§Ã£o JSON', e?.message || String(e));
     } finally {
       this.exporting = false;
     }

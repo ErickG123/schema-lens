@@ -16,6 +16,12 @@ export class ConnectionPanelComponent {
   @Input() loading = false;
   @Output() onTest = new EventEmitter<void>();
 
+  invalidateIdentity(): void {
+    this.config.testStatus = 'idle';
+    this.config.confirmedIdentity = undefined;
+    this.config.confirmedDatabaseName = undefined;
+  }
+
   get statusClass(): string {
     if (this.loading) return 'status-testing';
     if (this.config.testStatus === 'success') return 'status-success';

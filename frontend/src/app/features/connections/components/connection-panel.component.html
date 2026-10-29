@@ -14,9 +14,10 @@
   </div>
 
   <div class="panel-body">
+    <p *ngIf="config.confirmedIdentity" class="connection-identity">Connection confirmed: {{ config.confirmedIdentity }}</p>
     <div class="form-group">
       <label class="form-label">Modo de Conexão</label>
-      <select class="form-control" [(ngModel)]="config.mode">
+      <select class="form-control" [(ngModel)]="config.mode" (ngModelChange)="invalidateIdentity()">
         <option value="online">Banco SQL Server Conectado</option>
         <option value="file">Arquivo de Script DDL (.sql)</option>
       </select>
@@ -27,17 +28,17 @@
       <div class="form-row">
         <div class="form-group flex-2">
           <label class="form-label">Servidor e Porta</label>
-          <input type="text" class="form-control" [(ngModel)]="config.server" placeholder="ex: 127.0.0.1,14331">
+          <input type="text" class="form-control" [(ngModel)]="config.server" (ngModelChange)="invalidateIdentity()" placeholder="ex: 127.0.0.1,14331">
         </div>
         <div class="form-group flex-2">
           <label class="form-label">Banco de Dados</label>
-          <input type="text" class="form-control" [(ngModel)]="config.database" placeholder="ex: SchemaSource">
+          <input type="text" class="form-control" [(ngModel)]="config.database" (ngModelChange)="invalidateIdentity()" placeholder="ex: SchemaSource">
         </div>
       </div>
 
       <div class="form-group">
         <label class="form-label">Tipo de Autenticação</label>
-        <select class="form-control" [(ngModel)]="config.authType">
+        <select class="form-control" [(ngModel)]="config.authType" (ngModelChange)="invalidateIdentity()">
           <option value="sql">SQL Server Authentication (Usuário / Senha)</option>
           <option value="windows">Windows Integrated Authentication (SSPI)</option>
         </select>
@@ -46,17 +47,20 @@
       <div *ngIf="config.authType === 'sql'" class="form-row">
         <div class="form-group flex-1">
           <label class="form-label">Usuário</label>
-          <input type="text" class="form-control" [(ngModel)]="config.username" placeholder="sa">
+          <input type="text" class="form-control" [(ngModel)]="config.username" (ngModelChange)="invalidateIdentity()" placeholder="sa">
         </div>
         <div class="form-group flex-1">
           <label class="form-label">Senha</label>
-          <input type="password" class="form-control" [(ngModel)]="config.password" placeholder="••••••••">
+          <input type="password" class="form-control" [(ngModel)]="config.password" (ngModelChange)="invalidateIdentity()" placeholder="••••••••">
         </div>
       </div>
 
+      <div *ngIf="config.trustServerCertificate" class="certificate-warning" role="alert">
+        Certificate validation is disabled for this profile. Confirm the server certificate before connecting.
+      </div>
       <div class="form-checkbox">
         <label>
-          <input type="checkbox" [(ngModel)]="config.trustServerCertificate">
+          <input type="checkbox" [(ngModel)]="config.trustServerCertificate" (ngModelChange)="invalidateIdentity()">
           <span>Confiar no Certificado do Servidor (TrustServerCertificate)</span>
         </label>
       </div>

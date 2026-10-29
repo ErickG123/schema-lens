@@ -2,6 +2,7 @@ import { DiffViewRow } from '../../comparison/models/comparison.model';
 
 export interface ComparisonHistoryEntry {
   id: string; // UUID
+  comparisonId?: string;
   executedAt: string; // ISO-8601
   sourceIdentifier: string; // Ex: localhost,14331 / SchemaSource
   targetIdentifier: string; // Ex: localhost,14332 / SchemaTarget

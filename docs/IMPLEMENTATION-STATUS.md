@@ -41,5 +41,8 @@ Status geral das fases do projeto de acordo com a orquestração (`schemalens-pr
 | 37 | Correção do Diagrama ER, Análise de Risco e Histórico Local | DONE | `docs/reports/PHASE-37-er-diagram-history-risk-fixes.md` |
 | 38 | Refinamento do Diagrama ER, Legibilidade e Consistência Visual | DONE | `docs/reports/PHASE-38-er-diagram-usability.md` |
 | 39 | Auditoria, Implementação e Automação da Cobertura de Testes | DONE | `docs/reports/PHASE-39-test-coverage.md` |
+| 40 | Connection provenance audit | IN_PROGRESS | `docs/reports/PHASE-40-connection-data-provenance.md` |
+| 41 | Risk and compatibility impact analysis | IN_PROGRESS | `docs/reports/PHASE-41-risk-impact-analysis.md` |
 
-Última atualização: 2026-10-27
+
+Last updated: 2026-10-29

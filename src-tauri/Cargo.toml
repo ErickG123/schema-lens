@@ -4,6 +4,11 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+dotnet_conn_parser = { path = "../crates/dotnet_conn_parser" }
+schema-reader = { path = "../crates/schema-reader" }
+schema-lens-domain = { path = "../crates/domain" }
+schema-diff = { path = "../crates/schema-diff" }
+sql-generator = { path = "../crates/sql-generator" }
 schema-lens-app = { path = "../crates/application" }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
