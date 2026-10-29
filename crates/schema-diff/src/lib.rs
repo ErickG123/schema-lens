@@ -293,6 +293,28 @@ impl DiffEngine {
                     });
                 }
 
+                if sc.precision != tc.precision || sc.scale != tc.scale {
+                    diffs.push(SchemaDifference {
+                        id: Uuid::new_v4().to_string(),
+                        object_type: SchemaObjectType::Column,
+                        schema_name: src_table.id.schema.clone(),
+                        object_name: format!("{}.{}", src_table.id.name, sc.name),
+                        category: DifferenceCategory::PropertyMismatch,
+                        property_name: Some("precision_scale".to_string()),
+                        value_source: Some(format!("precision={}, scale={}", sc.precision, sc.scale)),
+                        value_target: Some(format!("precision={}, scale={}", tc.precision, tc.scale)),
+                        severity: if sc.precision < tc.precision || sc.scale < tc.scale {
+                            DifferenceSeverity::Critical
+                        } else {
+                            DifferenceSeverity::Medium
+                        },
+                        confidence: ConfidenceStatus::High,
+                        explanation: format!("Numeric precision/scale mismatch for {}.{}", src_table.id.full_name(), sc.name),
+                        risk_assessment: Some("Values outside the destination range may fail conversion or lose precision; stored values were not inspected".to_string()),
+                        can_generate_sql: true,
+                    });
+                }
+
                 // Verificar nullability
                 if sc.is_nullable != tc.is_nullable {
                     diffs.push(SchemaDifference {
@@ -344,6 +366,19 @@ impl DiffEngine {
                     });
                 }
             } else {
+                let generated_value = if sc.is_identity {
+                    " IDENTITY"
+                } else if sc.is_computed {
+                    " COMPUTED"
+                } else {
+                    ""
+                };
+                let default_value = src_table
+                    .default_constraints
+                    .iter()
+                    .find(|constraint| constraint.column_name == sc.name)
+                    .map(|constraint| format!(" DEFAULT {}", constraint.definition))
+                    .unwrap_or_default();
                 diffs.push(SchemaDifference {
                     id: Uuid::new_v4().to_string(),
                     object_type: SchemaObjectType::Column,
@@ -352,9 +387,11 @@ impl DiffEngine {
                     category: DifferenceCategory::MissingInTarget,
                     property_name: None,
                     value_source: Some(format!(
-                        "{} {}",
+                        "{} {}{}{}",
                         sc.data_type,
-                        if sc.is_nullable { "NULL" } else { "NOT NULL" }
+                        if sc.is_nullable { "NULL" } else { "NOT NULL" },
+                        generated_value,
+                        default_value
                     )),
                     value_target: None,
                     severity: DifferenceSeverity::Medium,
@@ -504,8 +541,11 @@ impl DiffEngine {
         for sfk in &src_table.foreign_keys {
             if let Some(tfk) = tgt_fks.get(sfk.name.as_str()) {
                 if sfk.referenced_table != tfk.referenced_table
+                    || sfk.referenced_schema != tfk.referenced_schema
                     || sfk.column_mappings != tfk.column_mappings
                     || sfk.delete_rule != tfk.delete_rule
+                    || sfk.update_rule != tfk.update_rule
+                    || sfk.is_disabled != tfk.is_disabled
                 {
                     diffs.push(SchemaDifference {
                         id: Uuid::new_v4().to_string(),
@@ -515,12 +555,12 @@ impl DiffEngine {
                         category: DifferenceCategory::PropertyMismatch,
                         property_name: Some("definition".to_string()),
                         value_source: Some(format!(
-                            "Ref: {}.{} Del: {}",
-                            sfk.referenced_schema, sfk.referenced_table, sfk.delete_rule
+                            "Ref: {}.{} Del: {} Update: {} Disabled: {}",
+                            sfk.referenced_schema, sfk.referenced_table, sfk.delete_rule, sfk.update_rule, sfk.is_disabled
                         )),
                         value_target: Some(format!(
-                            "Ref: {}.{} Del: {}",
-                            tfk.referenced_schema, tfk.referenced_table, tfk.delete_rule
+                            "Ref: {}.{} Del: {} Update: {} Disabled: {}",
+                            tfk.referenced_schema, tfk.referenced_table, tfk.delete_rule, tfk.update_rule, tfk.is_disabled
                         )),
                         severity: DifferenceSeverity::Critical,
                         confidence: ConfidenceStatus::High,
@@ -605,7 +645,7 @@ impl DiffEngine {
 
         for su in &src_table.unique_constraints {
             if let Some(tu) = tgt_uqs.get(su.name.as_str()) {
-                if su.columns != tu.columns {
+                if su.columns != tu.columns || su.is_clustered != tu.is_clustered {
                     diffs.push(SchemaDifference {
                         id: Uuid::new_v4().to_string(),
                         object_type: SchemaObjectType::UniqueConstraint,
@@ -680,7 +720,7 @@ impl DiffEngine {
 
         for sc in &src_table.check_constraints {
             if let Some(tc) = tgt_cks.get(sc.name.as_str()) {
-                if sc.definition != tc.definition {
+                if sc.definition != tc.definition || sc.is_disabled != tc.is_disabled {
                     diffs.push(SchemaDifference {
                         id: Uuid::new_v4().to_string(),
                         object_type: SchemaObjectType::CheckConstraint,
@@ -688,8 +728,8 @@ impl DiffEngine {
                         object_name: format!("{}.{}", src_table.id.name, sc.name),
                         category: DifferenceCategory::PropertyMismatch,
                         property_name: Some("definition".to_string()),
-                        value_source: Some(sc.definition.clone()),
-                        value_target: Some(tc.definition.clone()),
+                        value_source: Some(format!("{}; disabled={}", sc.definition, sc.is_disabled)),
+                        value_target: Some(format!("{}; disabled={}", tc.definition, tc.is_disabled)),
                         severity: DifferenceSeverity::Medium,
                         confidence: ConfidenceStatus::High,
                         explanation: format!(

@@ -11,11 +11,14 @@ export interface DependencyPathItem {
 
 export interface MigrationRiskAlert {
   id: string;
+  category?: 'structural' | 'data' | 'compatibility' | 'availability' | 'integrity' | 'unknown';
   severity: ImpactRiskSeverity;
   affectedObject: string;
   changeDetected: string;
   ruleTriggered: string;
   evidence: string;
+  unverifiedConditions?: string[];
+  preconditions?: string[];
   potentialConsequence: string;
   confidence: 'Confirmed' | 'Inferred' | 'Indeterminate';
   recommendedAction: string;

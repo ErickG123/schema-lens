@@ -3,73 +3,52 @@ import assert from 'node:assert';
 import { ImpactAnalysisService } from './impact-analysis.service';
 import { DiffViewRow } from '../../comparison/models/comparison.model';
 
-describe('ImpactAnalysisService Unit Tests', () => {
+describe('ImpactAnalysisService', () => {
   const service = new ImpactAnalysisService();
+  const diff = (overrides: Partial<DiffViewRow>): DiffViewRow => ({ severity: 'MÉDIA', schema: 'alpha', objectName: 'Products.Description', category: 'Divergência de Propriedade', propertyName: 'is_nullable', valueSource: 'false', valueTarget: 'true', details: 'Nullability differs.', objectType: 'Column', confidence: 'high', ...overrides });
 
-  const mockDiffs: DiffViewRow[] = [
-    {
-      id: 'diff-1',
-      severity: 'CRÍTICA',
-      schema: 'dbo',
-      objectName: '[dbo].[Orders].Status',
-      category: 'Divergência de Propriedade',
-      valueSource: 'VARCHAR(20)',
-      valueTarget: 'VARCHAR(10)',
-      details: 'Tamanho menor no destino. Risco de truncamento.'
-    },
-    {
-      id: 'diff-2',
-      severity: 'MÉDIA',
-      schema: 'sales',
-      objectName: '[sales].[Discounts]',
-      category: 'Ausente no Destino',
-      valueSource: 'Table (3 cols)',
-      valueTarget: 'Inexistente',
-      details: 'Tabela ausente no alvo.'
-    },
-    {
-      id: 'diff-3',
-      severity: 'BAIXA',
-      schema: 'dbo',
-      objectName: '[dbo].[LegacyLogs]',
-      category: 'Ausente na Origem',
-      valueSource: 'Inexistente',
-      valueTarget: 'Table (3 cols)',
-      details: 'Tabela legada existente somente no destino.'
-    }
-  ];
-
-  it('should identify critical data truncation hazard when column is reduced in size', () => {
-    const alerts = service.analyzeRisks(mockDiffs);
-    assert.ok(alerts.length >= 1);
-
-    const truncAlert = alerts.find(a => a.ruleTriggered === 'DATA_TRUNCATION_HAZARD');
-    assert.ok(truncAlert, 'Data truncation hazard alert should be generated');
-    assert.strictEqual(truncAlert.severity, 'CRITICAL');
-    assert.strictEqual(truncAlert.isDestructive, true);
-    assert.strictEqual(truncAlert.affectedObject, '[dbo].[Orders].Status');
-    assert.ok(truncAlert.dependencies.length > 0);
+  it('describes tightening nullability as a conditional target data risk', () => {
+    const alert = service.analyzeRisks([diff({})])[0];
+    assert.strictEqual(alert.category, 'compatibility');
+    assert.match(alert.potentialConsequence, /NULLs/);
+    assert.ok((alert.unverifiedConditions || []).length > 0);
+    assert.strictEqual(alert.confidence, 'Inferred');
   });
 
-  it('should identify non-destructive schema additions', () => {
-    const alerts = service.analyzeRisks(mockDiffs);
-    const additionAlert = alerts.find(a => a.ruleTriggered === 'SAFE_OBJECT_CREATION');
-    assert.ok(additionAlert, 'Safe addition alert should be present');
-    assert.strictEqual(additionAlert.severity, 'INFO');
-    assert.strictEqual(additionAlert.isDestructive, false);
+  it('describes a stricter destination as compatibility risk without claiming data loss', () => {
+    const alert = service.analyzeRisks([diff({ valueSource: 'true', valueTarget: 'false' })])[0];
+    assert.match(alert.potentialConsequence, /rejeitar/);
+    assert.doesNotMatch(alert.potentialConsequence, /data loss/i);
   });
 
-  it('should generate ordered migration plan steps', () => {
-    const steps = service.generateMigrationPlan(mockDiffs);
-    assert.ok(steps.length > 0);
+  it('flags a new required column conditionally and does not invent a fill value', () => {
+    const alert = service.analyzeRisks([diff({ objectName: 'Products.Code', objectType: 'Column', category: 'Ausente no Destino', propertyName: undefined, valueSource: 'nvarchar NOT NULL', valueTarget: 'Inexistente' })])[0];
+    assert.ok(alert.potentialConsequence.length > 0);
+    assert.ok(alert.recommendedAction.length > 0);
+    assert.doesNotMatch(alert.recommendedAction, /SET .* =/i);
+    assert.ok((alert.unverifiedConditions || []).length > 0);
+  });
 
-    // Verify ordering: Schema creation comes before Table creation, which comes before column alterations
-    for (let i = 0; i < steps.length - 1; i++) {
-      assert.ok(steps[i].order <= steps[i + 1].order, `Step ${i} order must be <= Step ${i+1} order`);
-    }
+  it('treats a required column default as unvalidated evidence, not as a safe fill automatically', () => {
+    const alert = service.analyzeRisks([diff({ objectType: 'Column', category: 'Ausente no Destino', propertyName: undefined, valueSource: 'int NOT NULL DEFAULT (0)', valueTarget: 'Inexistente' })])[0];
+    assert.match(alert.potentialConsequence, /default/i);
+    assert.match(alert.recommendedAction, /Revise o default/);
+    assert.ok((alert.unverifiedConditions || []).length > 0);
+  });
 
-    const colStep = steps.find(s => s.operationType === 'ALTER_COLUMN');
-    assert.ok(colStep, 'ALTER_COLUMN step should be generated for Status column');
-    assert.strictEqual(colStep.isDestructive, false, 'Altering column expansion to VARCHAR(20) is defensive and non-destructive');
+  it('marks constraint risks as conditional and never claims current violations', () => {
+    const alert = service.analyzeRisks([diff({ objectType: 'ForeignKey', propertyName: undefined, category: 'Ausente no Destino' })])[0];
+    assert.match(alert.potentialConsequence, /pode rejeitar/);
+    assert.ok((alert.unverifiedConditions || []).length > 0);
+  });
+
+  it('returns stable classifications and no static alert for empty diffs', () => {
+    const row = diff({ objectName: 'alpha.Products.Description' });
+    assert.deepStrictEqual(service.analyzeRisks([]), []);
+    assert.deepStrictEqual(service.analyzeRisks([row]), service.analyzeRisks([row]));
+  });
+
+  it('does not expose an executable plan without snapshot-validated prerequisites', () => {
+    assert.deepStrictEqual(service.generateMigrationPlan([diff({})]), []);
   });
 });

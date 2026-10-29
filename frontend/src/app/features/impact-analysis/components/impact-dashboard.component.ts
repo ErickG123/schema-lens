@@ -1,4 +1,4 @@
-import { Component, inject, Input, OnChanges } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnChanges, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { DiffViewRow } from '../../comparison/models/comparison.model';
 import { MigrationPlanStep, MigrationRiskAlert } from '../models/impact.model';
@@ -13,11 +13,13 @@ import { ImpactAnalysisService } from '../services/impact-analysis.service';
 })
 export class ImpactDashboardComponent implements OnChanges {
   @Input() diffs: DiffViewRow[] = [];
+  @Output() onNavigate = new EventEmitter<string>();
 
   private impactService = inject(ImpactAnalysisService);
 
   alerts: MigrationRiskAlert[] = [];
   planSteps: MigrationPlanStep[] = [];
+  readonly planNotice = 'Nenhum plano SQL validado está disponível para estes snapshots. Revise as pré-condições dos alertas antes de preparar uma migração.';
 
   ngOnChanges(): void {
     this.alerts = this.impactService.analyzeRisks(this.diffs);

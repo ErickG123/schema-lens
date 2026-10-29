@@ -20,17 +20,17 @@ describe('ComparisonHistoryService Unit Tests', () => {
   const mockDiffs: DiffViewRow[] = [
     {
       id: 'diff-1',
-      severity: 'CRÍTICA',
+      severity: 'CR\u00CDTICA',
       schema: 'dbo',
       objectName: '[dbo].[Orders].Status',
-      category: 'Divergência de Propriedade',
+      category: 'DivergÃªncia de Propriedade',
       valueSource: 'VARCHAR(20)',
       valueTarget: 'VARCHAR(10)',
       details: 'Tamanho menor no destino.'
     },
     {
       id: 'diff-2',
-      severity: 'MÉDIA',
+      severity: 'M\u00C9DIA',
       schema: 'sales',
       objectName: '[sales].[Discounts]',
       category: 'Ausente no Destino',
@@ -40,11 +40,19 @@ describe('ComparisonHistoryService Unit Tests', () => {
     }
   ];
 
-  it('should initialize with default entry when storage is empty', () => {
+  it('initializes with empty history when storage is empty', () => {
     const service = new ComparisonHistoryService();
     const items = service.history();
-    assert.ok(items.length >= 1);
-    assert.strictEqual(items[0].id, 'hist-e2e-001');
+    assert.deepStrictEqual(items, []);
+  });
+
+  it('removes the previously seeded demo row but preserves real history', () => {
+    localStorage.setItem('schemalens_comparison_history_v1', JSON.stringify([
+      { id: 'hist-e2e-001', sourceIdentifier: 'sample', targetIdentifier: 'sample', diffs: [] },
+      { id: 'hist-real-1', sourceIdentifier: 'A/Db', targetIdentifier: 'B/Db', diffs: [] }
+    ]));
+    const service = new ComparisonHistoryService();
+    assert.deepStrictEqual(service.history().map(entry => entry.id), ['hist-real-1']);
   });
 
   it('should save new comparison run and persist to localStorage', () => {
@@ -72,9 +80,8 @@ describe('ComparisonHistoryService Unit Tests', () => {
 
   it('should delete entry by id when requested', () => {
     const service = new ComparisonHistoryService();
-    assert.ok(service.history().length > 0);
-
-    const targetId = service.history()[0].id;
+    const entry = service.saveComparison('Source/Db', 'Target/Db', mockDiffs);
+    const targetId = entry.id;
     service.deleteEntry(targetId);
 
     const found = service.history().some(h => h.id === targetId);

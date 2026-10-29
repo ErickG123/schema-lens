@@ -23,7 +23,7 @@ async fn test_app_service_test_connection_file_mode() {
         .await
         .expect("File mode test connection should succeed");
     assert!(res.success);
-    assert!(res.message.contains("localizado com sucesso"));
+    assert!(res.message.contains("DDL file found"));
 
     let _ = fs::remove_file(&temp_path);
 }
@@ -44,13 +44,13 @@ async fn test_app_service_test_connection_file_missing_fails() {
 
     let res = AppService::test_connection(payload).await;
     assert!(res.is_err());
-    assert!(res.unwrap_err().contains("não encontrado no disco"));
+    assert!(res.unwrap_err().contains("not found"));
 }
 
 #[tokio::test]
 async fn test_app_service_test_connection_sql_mode() {
     let payload = TestConnectionPayload {
-        mode: "sql".to_string(),
+        mode: "online".to_string(),
         server: Some("localhost".to_string()),
         port: Some(1433),
         database: Some("SchemaTarget".to_string()),
@@ -61,11 +61,8 @@ async fn test_app_service_test_connection_sql_mode() {
         file_path: None,
     };
 
-    let res = AppService::test_connection(payload)
-        .await
-        .expect("Sql mode test connection should succeed");
-    assert!(res.success);
-    assert!(res.message.contains("Parâmetros validados"));
+    let res = AppService::test_connection(payload).await;
+    assert!(res.is_err());
 }
 
 #[test]

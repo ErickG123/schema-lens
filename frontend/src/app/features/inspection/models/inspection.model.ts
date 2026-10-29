@@ -18,7 +18,7 @@ export interface DetailedObjectInspection {
   schema: string;
   name: string;
   objectType: string;
-  overallStatus: 'identical' | 'missing_in_target' | 'missing_in_source' | 'modified';
+  overallStatus: 'identical' | 'missing_in_target' | 'missing_in_source' | 'modified' | 'indeterminate';
   properties: ObjectDetailProperty[];
   sourceSqlDefinition?: string;
   targetSqlDefinition?: string;
