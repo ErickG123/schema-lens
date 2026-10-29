@@ -5,82 +5,83 @@
         {{ side === 'source' ? 'ORIGEM (A)' : 'DESTINO (B)' }}
       </span>
       <span class="panel-subtitle">
-        {{ side === 'source' ? 'Base de Referência' : 'Alvo da Comparação' }}
+        {{ side === 'source' ? 'Base de referência' : 'Alvo da comparação' }}
       </span>
     </div>
-    <div class="status-indicator" [ngClass]="statusClass">
+    <div class="status-indicator" [ngClass]="statusClass" aria-live="polite">
       {{ statusText }}
     </div>
   </div>
 
   <div class="panel-body">
-    <p *ngIf="config.confirmedIdentity" class="connection-identity">Connection confirmed: {{ config.confirmedIdentity }}</p>
+    <p *ngIf="config.confirmedIdentity" class="connection-identity">Identidade confirmada: {{ config.confirmedIdentity }}</p>
+    <p *ngIf="config.hasStoredCredential && config.authType === 'sql'" class="stored-credential" role="status">
+      Senha armazenada com segurança. Deixe o campo em branco para manter a senha atual.
+    </p>
     <div class="form-group">
-      <label class="form-label">Modo de Conexão</label>
-      <select class="form-control" [(ngModel)]="config.mode" (ngModelChange)="invalidateIdentity()">
-        <option value="online">Banco SQL Server Conectado</option>
-        <option value="file">Arquivo de Script DDL (.sql)</option>
+      <label class="form-label" [for]="side + '-mode'">Modo de conexão</label>
+      <select [id]="side + '-mode'" class="form-control" [(ngModel)]="config.mode" (ngModelChange)="invalidateIdentity()" [disabled]="disabled">
+        <option value="online">Banco SQL Server conectado</option>
+        <option value="file">Arquivo de script DDL (.sql)</option>
       </select>
     </div>
 
-    <!-- Modo Online -->
     <div *ngIf="config.mode === 'online'" class="online-section">
       <div class="form-row">
         <div class="form-group flex-2">
-          <label class="form-label">Servidor e Porta</label>
-          <input type="text" class="form-control" [(ngModel)]="config.server" (ngModelChange)="invalidateIdentity()" placeholder="ex: 127.0.0.1,14331">
+          <label class="form-label" [for]="side + '-server'">Servidor ou instância</label>
+          <input [id]="side + '-server'" type="text" class="form-control" [(ngModel)]="config.server" (ngModelChange)="invalidateIdentity()" placeholder="ex.: sql01\instância" [disabled]="disabled">
+        </div>
+        <div class="form-group flex-1">
+          <label class="form-label" [for]="side + '-port'">Porta</label>
+          <input [id]="side + '-port'" type="number" class="form-control" min="1" max="65535" [(ngModel)]="config.port" (ngModelChange)="invalidateIdentity()" [disabled]="disabled">
         </div>
         <div class="form-group flex-2">
-          <label class="form-label">Banco de Dados</label>
-          <input type="text" class="form-control" [(ngModel)]="config.database" (ngModelChange)="invalidateIdentity()" placeholder="ex: SchemaSource">
+          <label class="form-label" [for]="side + '-database'">Banco de dados</label>
+          <input [id]="side + '-database'" type="text" class="form-control" [(ngModel)]="config.database" (ngModelChange)="invalidateIdentity()" placeholder="Nome do banco" [disabled]="disabled">
         </div>
       </div>
 
       <div class="form-group">
-        <label class="form-label">Tipo de Autenticação</label>
-        <select class="form-control" [(ngModel)]="config.authType" (ngModelChange)="invalidateIdentity()">
-          <option value="sql">SQL Server Authentication (Usuário / Senha)</option>
-          <option value="windows">Windows Integrated Authentication (SSPI)</option>
+        <label class="form-label" [for]="side + '-auth'">Tipo de autenticação</label>
+        <select [id]="side + '-auth'" class="form-control" [(ngModel)]="config.authType" (ngModelChange)="invalidateIdentity()" [disabled]="disabled">
+          <option value="sql">Autenticação SQL Server (usuário e senha)</option>
+          <option value="windows">Autenticação integrada do Windows (SSPI)</option>
         </select>
       </div>
 
       <div *ngIf="config.authType === 'sql'" class="form-row">
         <div class="form-group flex-1">
-          <label class="form-label">Usuário</label>
-          <input type="text" class="form-control" [(ngModel)]="config.username" (ngModelChange)="invalidateIdentity()" placeholder="sa">
+          <label class="form-label" [for]="side + '-username'">Usuário</label>
+          <input [id]="side + '-username'" type="text" class="form-control" [(ngModel)]="config.username" (ngModelChange)="invalidateIdentity()" placeholder="Usuário SQL" [disabled]="disabled">
         </div>
         <div class="form-group flex-1">
-          <label class="form-label">Senha</label>
-          <input type="password" class="form-control" [(ngModel)]="config.password" (ngModelChange)="invalidateIdentity()" placeholder="••••••••">
+          <label class="form-label" [for]="side + '-password'">Senha</label>
+          <input [id]="side + '-password'" type="password" class="form-control" [(ngModel)]="config.password" (ngModelChange)="invalidateIdentity()" autocomplete="new-password" placeholder="Informe para salvar ou substituir" [disabled]="disabled">
         </div>
       </div>
 
       <div *ngIf="config.trustServerCertificate" class="certificate-warning" role="alert">
-        Certificate validation is disabled for this profile. Confirm the server certificate before connecting.
+        A validação do certificado está desativada para este perfil. Confirme o certificado do servidor antes de conectar.
       </div>
       <div class="form-checkbox">
-        <label>
-          <input type="checkbox" [(ngModel)]="config.trustServerCertificate" (ngModelChange)="invalidateIdentity()">
-          <span>Confiar no Certificado do Servidor (TrustServerCertificate)</span>
+        <label [for]="side + '-trust-certificate'">
+          <input [id]="side + '-trust-certificate'" type="checkbox" [(ngModel)]="config.trustServerCertificate" (ngModelChange)="invalidateIdentity()" [disabled]="disabled">
+          <span>Confiar no certificado do servidor (TrustServerCertificate)</span>
         </label>
       </div>
     </div>
 
-    <!-- Modo Arquivo Offline -->
     <div *ngIf="config.mode === 'file'" class="file-section">
       <div class="form-group">
-        <label class="form-label">Caminho do Arquivo DDL (.sql)</label>
-        <input type="text" class="form-control" [(ngModel)]="config.filePath" placeholder="C:\scripts\schema.sql">
+        <label class="form-label" [for]="side + '-file-path'">Caminho do arquivo DDL (.sql)</label>
+        <input [id]="side + '-file-path'" type="text" class="form-control" [(ngModel)]="config.filePath" placeholder="C:\scripts\schema.sql" [disabled]="disabled">
       </div>
     </div>
 
-    <button 
-      type="button" 
-      class="btn btn-secondary test-btn" 
-      [disabled]="loading"
-      (click)="onTest.emit()">
-      <span *ngIf="loading">Testando Conexão...</span>
-      <span *ngIf="!loading">Testar Conectividade</span>
+    <button type="button" class="btn btn-secondary test-btn" [disabled]="loading || disabled" (click)="onTest.emit()">
+      <span *ngIf="loading">Testando conexão…</span>
+      <span *ngIf="!loading">Testar conexão</span>
     </button>
   </div>
 </div>

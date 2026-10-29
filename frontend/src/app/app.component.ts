@@ -1,8 +1,9 @@
-import { Component, inject, ViewChild } from '@angular/core';
+import { Component, ElementRef, inject, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
-import { ConnectionPanelComponent } from './features/connections/components/connection-panel.component';
-import { ConnectionFormState } from './features/connections/models/connection.model';
+import { ConnectionSettingsModalComponent } from './features/connections/components/connection-settings-modal.component';
+import { ConnectionFormState, ConnectionSettingsApplied, SavedConnection } from './features/connections/models/connection.model';
+import { mapSavedConnection } from './features/connections/models/connection-settings.utils';
 import { ComparisonToolbarComponent } from './features/comparison/components/comparison-toolbar.component';
 import { DiffResultsComponent } from './features/comparison/components/diff-results.component';
 import { ComparisonReport, ComparisonResultDto, DiffViewRow } from './features/comparison/models/comparison.model';
@@ -26,7 +27,7 @@ import { TauriIpcService } from './core/services/ipc.service';
   imports: [
     CommonModule,
     FormsModule,
-    ConnectionPanelComponent,
+    ConnectionSettingsModalComponent,
     ComparisonToolbarComponent,
     DiffResultsComponent,
     ErDiagramComponent,
@@ -39,16 +40,17 @@ import { TauriIpcService } from './core/services/ipc.service';
   templateUrl: './app.component.html',
   styleUrl: './app.component.css'
 })
-export class AppComponent {
+export class AppComponent implements OnInit {
   private ipc = inject(TauriIpcService);
   private notify = inject(NotificationService);
   private inspectionService = inject(ObjectInspectionService);
   private historyService = inject(ComparisonHistoryService);
 
   @ViewChild('erDiagram') erDiagramComponent?: ErDiagramComponent;
+  @ViewChild('settingsButton') private settingsButton?: ElementRef<HTMLButtonElement>;
 
   activeView: 'table' | 'diagram' | 'impact' | 'history' = 'table';
-  sidebarCollapsed = false;
+  connectionSettingsOpen = false;
   activeInspection: DetailedObjectInspection | null = null;
 
   source: ConnectionFormState = {
@@ -77,8 +79,7 @@ export class AppComponent {
     testStatus: 'idle'
   };
 
-  testingSource = false;
-  testingTarget = false;
+  savedConnections: SavedConnection[] = [];
   comparing = false;
   exporting = false;
   hasRun = false;
@@ -91,12 +92,42 @@ export class AppComponent {
   targetTables: SnapshotTable[] = [];
   private comparisonSequence = 0;
 
-  toggleSidebar(): void {
-    this.sidebarCollapsed = !this.sidebarCollapsed;
-    if (this.activeView === 'diagram') {
-      setTimeout(() => {
-        this.erDiagramComponent?.refreshViewport();
-      }, 100);
+  async ngOnInit(): Promise<void> {
+    try {
+      const settings = await this.ipc.loadConnectionSettings();
+      this.savedConnections = settings.connections || [];
+      this.source = this.connectionFromSaved(settings.selection.sourceConnectionId);
+      this.target = this.connectionFromSaved(settings.selection.targetConnectionId);
+    } catch (error: any) {
+      this.notify.error('Falha ao carregar conexões', error?.message || 'As conexões salvas não puderam ser recuperadas.');
+    }
+  }
+
+  openConnectionSettings(): void {
+    this.connectionSettingsOpen = true;
+  }
+
+  closeConnectionSettings(): void {
+    this.connectionSettingsOpen = false;
+    setTimeout(() => this.settingsButton?.nativeElement.focus(), 0);
+  }
+
+  applyConnectionSettings(settings: ConnectionSettingsApplied): void {
+    const previous = JSON.stringify({ source: this.source, target: this.target });
+    this.source = { ...settings.source, password: '' };
+    this.target = { ...settings.target, password: '' };
+    this.savedConnections = settings.connections;
+    const current = JSON.stringify({ source: this.source, target: this.target });
+    if (previous !== current && this.hasRun) {
+      this.comparisonSequence++;
+      this.diffs = [];
+      this.sourceTables = [];
+      this.targetTables = [];
+      this.activeInspection = null;
+      this.hasRun = false;
+      this.filterQuery = '';
+      this.selectedCategory = 'all';
+      this.notify.info('Comparação invalidada', 'As conexões mudaram. Execute uma nova comparação para atualizar os resultados.');
     }
   }
 
@@ -125,36 +156,13 @@ export class AppComponent {
     });
   }
 
-  async testConnection(side: 'source' | 'target') {
-    const config = side === 'source' ? this.source : this.target;
-    if (side === 'source') this.testingSource = true;
-    else this.testingTarget = true;
-
-    try {
-      const res = await this.ipc.testConnection(config);
-      config.testStatus = 'success';
-      config.confirmedIdentity = res?.databaseName ? `${res.serverName || 'Unknown server'} / ${res.databaseName}` : undefined;
-      config.confirmedDatabaseName = res?.databaseName;
-      this.notify.success(
-        `Conexão (${side === 'source' ? 'Origem' : 'Destino'})`,
-        res?.message || 'Conexão validada com sucesso.'
-      );
-    } catch (e: any) {
-      config.testStatus = 'error';
-      config.confirmedIdentity = undefined;
-      config.confirmedDatabaseName = undefined;
-      this.notify.error(
-        `Falha de Conexão (${side === 'source' ? 'Origem' : 'Destino'})`,
-        e?.message || String(e)
-      );
-    } finally {
-      if (side === 'source') this.testingSource = false;
-      else this.testingTarget = false;
-    }
-  }
-
   async runComparison() {
     if (this.comparing) return;
+    if (!this.source.profileId || !this.target.profileId) {
+      this.notify.warning('Conexões necessárias', 'Selecione uma conexão salva para Origem (A) e outra para Destino (B).');
+      this.openConnectionSettings();
+      return;
+    }
     const sequence = ++this.comparisonSequence;
     this.comparing = true;
     this.hasRun = false;
@@ -167,7 +175,7 @@ export class AppComponent {
     try {
       const identitiesConfirmed = await this.ensureConnectionIdentities();
       if (!identitiesConfirmed) return;
-      const res = await this.ipc.startComparison(this.source, this.target) as ComparisonResultDto;
+      const res = await this.ipc.startComparison(this.source.profileId, this.target.profileId) as ComparisonResultDto;
       if (sequence !== this.comparisonSequence) return;
       if (!res?.success || !Array.isArray(res.diffs)) throw new Error('Backend did not return a valid comparison result.');
       this.diffs = res.diffs;
@@ -195,16 +203,28 @@ export class AppComponent {
     for (const side of ['source', 'target'] as const) {
       const config = side === 'source' ? this.source : this.target;
       if (config.testStatus !== 'success') {
-        await this.testConnection(side);
-        if (!this.connectionTestSucceeded(config)) return false;
+        try {
+          const result = await this.ipc.testSavedConnection(config.profileId!);
+          config.testStatus = 'success';
+          config.confirmedIdentity = result?.databaseName
+            ? `${result.serverName || 'Servidor desconhecido'} / ${result.databaseName}`
+            : undefined;
+          config.confirmedDatabaseName = result?.databaseName;
+        } catch (error: any) {
+          config.testStatus = 'error';
+          config.confirmedIdentity = undefined;
+          config.confirmedDatabaseName = undefined;
+          this.notify.error(`Falha ao testar ${side === 'source' ? 'Origem (A)' : 'Destino (B)'}`, error?.message || 'Conexão não confirmada.');
+          return false;
+        }
       }
       if (config.confirmedDatabaseName && config.database &&
           config.confirmedDatabaseName.toLocaleLowerCase() !== config.database.toLocaleLowerCase()) {
         const accepted = await this.notify.confirm({
-          title: 'Database identity differs',
-          message: `Selected '${config.database}', but SQL Server confirmed '${config.confirmedDatabaseName}' (${config.confirmedIdentity}). Continue with the confirmed database?`,
-          confirmLabel: 'Continue',
-          cancelLabel: 'Cancel'
+          title: 'Banco confirmado diferente',
+          message: `A configuração solicita “${config.database}”, mas o SQL Server confirmou “${config.confirmedDatabaseName}” (${config.confirmedIdentity}). Deseja continuar?`,
+          confirmLabel: 'Continuar',
+          cancelLabel: 'Cancelar'
         });
         if (!accepted) return false;
       }
@@ -212,8 +232,16 @@ export class AppComponent {
     return true;
   }
 
-  private connectionTestSucceeded(config: ConnectionFormState): boolean {
-    return config.testStatus === 'success';
+  private connectionFromSaved(connectionId?: string | null): ConnectionFormState {
+    const saved = this.savedConnections.find(connection => connection.id === connectionId);
+    return mapSavedConnection(saved) || this.emptyConnection();
+  }
+
+  private emptyConnection(): ConnectionFormState {
+    return {
+      mode: 'online', connectionString: '', server: '', port: 1433, database: '',
+      authType: 'sql', username: '', password: '', trustServerCertificate: false, testStatus: 'idle'
+    };
   }
   onInspectObject(objectName: string): void {
     this.activeInspection = this.inspectionService.inspectObject(objectName);

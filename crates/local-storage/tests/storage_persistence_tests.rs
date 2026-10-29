@@ -1,8 +1,33 @@
-use local_storage::{ProfileStore, SavedProfile};
+use local_storage::{CredentialVault, ProfileStore, SavedProfile};
+use std::collections::HashMap;
+use std::sync::Mutex;
+
+#[derive(Default)]
+struct TestCredentialVault(Mutex<HashMap<String, String>>);
+
+impl CredentialVault for TestCredentialVault {
+    fn set_password(&self, credential_ref: &str, password: &str) -> Result<(), String> {
+        self.0
+            .lock()
+            .unwrap()
+            .insert(credential_ref.into(), password.into());
+        Ok(())
+    }
+
+    fn get_password(&self, credential_ref: &str) -> Result<Option<String>, String> {
+        Ok(self.0.lock().unwrap().get(credential_ref).cloned())
+    }
+
+    fn delete_password(&self, credential_ref: &str) -> Result<(), String> {
+        self.0.lock().unwrap().remove(credential_ref);
+        Ok(())
+    }
+}
 
 #[test]
 fn test_sqlite_profile_crud_and_credential_isolation() {
-    let store = ProfileStore::new(":memory:").expect("Failed to initialize in-memory SQLite");
+    let mut store = ProfileStore::with_vault(":memory:", Box::<TestCredentialVault>::default())
+        .expect("Failed to initialize in-memory SQLite");
 
     let profile1 = SavedProfile {
         id: "prof-prod-01".to_string(),
@@ -36,10 +61,10 @@ fn test_sqlite_profile_crud_and_credential_isolation() {
 
     // Salvar perfis
     store
-        .save_profile(&profile1, None)
+        .save_profile(&profile1, None, false)
         .expect("Failed to save profile 1");
     store
-        .save_profile(&profile2, None)
+        .save_profile(&profile2, None, false)
         .expect("Failed to save profile 2");
 
     // Listar perfis
@@ -68,7 +93,7 @@ fn test_sqlite_profile_crud_and_credential_isolation() {
     let mut updated_p1 = profile1.clone();
     updated_p1.connect_timeout_seconds = 60;
     store
-        .save_profile(&updated_p1, None)
+        .save_profile(&updated_p1, None, false)
         .expect("Failed to update profile 1");
 
     let profiles_after_update = store

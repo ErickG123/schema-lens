@@ -2,6 +2,7 @@ import { Injectable } from '@angular/core';
 import { invoke } from '@tauri-apps/api/core';
 import { save } from '@tauri-apps/plugin-dialog';
 import { SaveFileResult } from '../models/ipc.model';
+import { ConnectionSelection, ConnectionFormState, SavedConnection, SavedConnectionSettings } from '../../features/connections/models/connection.model';
 
 @Injectable({
   providedIn: 'root'
@@ -13,12 +14,38 @@ export class TauriIpcService {
     }
     return await invoke<T>(command, args);
   }
-  async testConnection(payload: any): Promise<any> {
-    return await this.invoke('test_connection', { payload });
+  async testConnection(payload: any, credentialRef?: string): Promise<any> {
+    return await this.invoke('test_connection', { payload, credentialRef });
   }
 
-  async startComparison(source: any, target: any): Promise<any> {
-    return await this.invoke('run_comparison', { source, target });
+  async loadConnectionSettings(): Promise<SavedConnectionSettings> {
+    return await this.invoke('load_connection_settings');
+  }
+
+  async saveConnection(profile: SavedConnection, config: ConnectionFormState): Promise<SavedConnection> {
+    return await this.invoke('save_connection', {
+      payload: {
+        profile,
+        password: config.password || null,
+        removePassword: false
+      }
+    });
+  }
+
+  async deleteConnection(connectionId: string): Promise<ConnectionSelection> {
+    return await this.invoke('delete_connection', { connectionId });
+  }
+
+  async saveConnectionSelection(selection: ConnectionSelection): Promise<void> {
+    return await this.invoke('save_connection_selection', { selection });
+  }
+
+  async testSavedConnection(connectionId: string): Promise<any> {
+    return await this.invoke('test_saved_connection', { connectionId });
+  }
+
+  async startComparison(sourceConnectionId: string, targetConnectionId: string): Promise<any> {
+    return await this.invoke('run_comparison', { sourceConnectionId, targetConnectionId });
   }
 
   async generateSql(): Promise<string> {

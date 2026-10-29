@@ -14,6 +14,7 @@ export class ConnectionPanelComponent {
   @Input() side: 'source' | 'target' = 'source';
   @Input() config!: ConnectionFormState;
   @Input() loading = false;
+  @Input() disabled = false;
   @Output() onTest = new EventEmitter<void>();
 
   invalidateIdentity(): void {

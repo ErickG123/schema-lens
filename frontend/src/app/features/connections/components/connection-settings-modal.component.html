@@ -1,0 +1,96 @@
+<div *ngIf="isOpen" class="settings-backdrop" (click)="onOverlayClick($event)">
+  <section
+    #dialog
+    class="settings-dialog"
+    role="dialog"
+    aria-modal="true"
+    aria-labelledby="connection-settings-title"
+    (keydown)="onDialogKeydown($event)">
+    <header class="settings-header">
+      <div>
+        <h2 id="connection-settings-title">Configurações de conexão</h2>
+        <p>Gerencie conexões SQL Server usadas como Origem (A) e Destino (B).</p>
+      </div>
+      <button type="button" class="close-button" aria-label="Fechar configurações" [disabled]="busy" (click)="requestClose()">×</button>
+    </header>
+
+    <div *ngIf="loadError" class="settings-error" role="alert">{{ loadError }}</div>
+    <div *ngIf="comparisonRunning" class="settings-notice" role="status">
+      Uma comparação está em andamento. Você pode revisar as configurações; salvar ficará disponível quando ela terminar.
+    </div>
+    <div *ngIf="loading" class="settings-loading" role="status">Carregando conexões salvas…</div>
+
+    <div *ngIf="!loading" class="settings-body">
+      <section class="connection-section source-section" aria-labelledby="source-connection-title">
+        <div class="section-heading">
+          <div>
+            <h3 id="source-connection-title">Origem (A)</h3>
+            <p>Schema de referência</p>
+          </div>
+          <button type="button" class="btn btn-secondary add-button" [disabled]="busy || comparisonRunning" (click)="addConnection('source')">Adicionar conexão</button>
+        </div>
+
+        <div class="saved-picker">
+          <label [for]="'source-saved-connection'">Conexão salva</label>
+          <select id="source-saved-connection" class="form-control" [ngModel]="sourceDraft.profileId || ''" (ngModelChange)="selectConnection('source', $event)" [disabled]="busy || comparisonRunning">
+            <option value="">Selecione ou adicione uma conexão</option>
+            <option *ngFor="let connection of connections" [value]="connection.id">{{ connection.name }} — {{ connection.server }} / {{ connection.database || connection.sqlFilePath }}</option>
+          </select>
+        </div>
+
+        <label class="form-label name-label" for="source-connection-name">Nome amigável</label>
+        <input id="source-connection-name" class="form-control" [(ngModel)]="sourceDraft.name" [disabled]="busy || comparisonRunning" placeholder="Ex.: Produção — origem">
+
+        <app-connection-panel
+          side="source"
+          [config]="sourceDraft"
+          [loading]="testingSource"
+          [disabled]="comparisonRunning"
+          (onTest)="testDraft('source')">
+        </app-connection-panel>
+        <button *ngIf="sourceDraft.profileId && connections.length" type="button" class="delete-connection" [disabled]="busy || comparisonRunning" (click)="deleteDraftConnection('source')">Excluir esta conexão salva</button>
+      </section>
+
+      <section class="connection-section target-section" aria-labelledby="target-connection-title">
+        <div class="section-heading">
+          <div>
+            <h3 id="target-connection-title">Destino (B)</h3>
+            <p>Banco atual a comparar</p>
+          </div>
+          <button type="button" class="btn btn-secondary add-button" [disabled]="busy || comparisonRunning" (click)="addConnection('target')">Adicionar conexão</button>
+        </div>
+
+        <div class="saved-picker">
+          <label for="target-saved-connection">Conexão salva</label>
+          <select id="target-saved-connection" class="form-control" [ngModel]="targetDraft.profileId || ''" (ngModelChange)="selectConnection('target', $event)" [disabled]="busy || comparisonRunning">
+            <option value="">Selecione ou adicione uma conexão</option>
+            <option *ngFor="let connection of connections" [value]="connection.id">{{ connection.name }} — {{ connection.server }} / {{ connection.database || connection.sqlFilePath }}</option>
+          </select>
+        </div>
+
+        <label class="form-label name-label" for="target-connection-name">Nome amigável</label>
+        <input id="target-connection-name" class="form-control" [(ngModel)]="targetDraft.name" [disabled]="busy || comparisonRunning" placeholder="Ex.: Homologação — destino">
+
+        <app-connection-panel
+          side="target"
+          [config]="targetDraft"
+          [loading]="testingTarget"
+          [disabled]="comparisonRunning"
+          (onTest)="testDraft('target')">
+        </app-connection-panel>
+        <button *ngIf="targetDraft.profileId && connections.length" type="button" class="delete-connection" [disabled]="busy || comparisonRunning" (click)="deleteDraftConnection('target')">Excluir esta conexão salva</button>
+      </section>
+    </div>
+
+    <footer class="settings-footer">
+      <span *ngIf="sourceDraft.hasStoredCredential || targetDraft.hasStoredCredential" class="credential-note">Senhas permanecem no Windows Credential Manager.</span>
+      <div class="footer-actions">
+        <button type="button" class="btn btn-secondary" [disabled]="busy" (click)="requestClose()">Cancelar</button>
+        <button type="button" class="btn btn-primary" [disabled]="busy || comparisonRunning || (!sourceDraft.profileId && !targetDraft.profileId)" (click)="save()">
+          <span *ngIf="saving">Salvando…</span>
+          <span *ngIf="!saving">Salvar configurações</span>
+        </button>
+      </div>
+    </footer>
+  </section>
+</div>
