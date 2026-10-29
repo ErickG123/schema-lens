@@ -43,6 +43,7 @@ Status geral das fases do projeto de acordo com a orquestração (`schemalens-pr
 | 39 | Auditoria, Implementação e Automação da Cobertura de Testes | DONE | `docs/reports/PHASE-39-test-coverage.md` |
 | 40 | Connection provenance audit | IN_PROGRESS | `docs/reports/PHASE-40-connection-data-provenance.md` |
 | 41 | Risk and compatibility impact analysis | IN_PROGRESS | `docs/reports/PHASE-41-risk-impact-analysis.md` |
+| 42 | SQL Generator and per-difference integration | IN_PROGRESS | `docs/reports/PHASE-42-sql-generator-and-diff-integration.md` |
 
 
 Last updated: 2026-10-29

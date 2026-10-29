@@ -407,18 +407,20 @@ impl SqlServerReader {
         }
 
         let index_rows = client.simple_query(&format!(
-            "SELECT i.name AS index_name, i.is_unique, CAST(CASE WHEN i.type = 1 THEN 1 ELSE 0 END AS bit) AS is_clustered, i.filter_definition, ic.is_included_column, ic.key_ordinal, c.name AS column_name FROM sys.indexes i JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id WHERE i.object_id = {object_id} AND i.name IS NOT NULL AND i.is_primary_key = 0 AND i.is_unique_constraint = 0 AND i.type IN (1, 2) ORDER BY i.name, ic.is_included_column, ic.key_ordinal, ic.index_column_id"
+            "SELECT i.name AS index_name, i.is_unique, CAST(CASE WHEN i.type = 1 THEN 1 ELSE 0 END AS bit) AS is_clustered, i.filter_definition, ic.is_included_column, ic.is_descending_key, ic.key_ordinal, c.name AS column_name FROM sys.indexes i JOIN sys.index_columns ic ON ic.object_id = i.object_id AND ic.index_id = i.index_id JOIN sys.columns c ON c.object_id = ic.object_id AND c.column_id = ic.column_id WHERE i.object_id = {object_id} AND i.name IS NOT NULL AND i.is_primary_key = 0 AND i.is_unique_constraint = 0 AND i.type IN (1, 2) ORDER BY i.name, ic.is_included_column, ic.key_ordinal, ic.index_column_id"
         )).await.map_err(|e| format!("Failed to read indexes: {e}"))?
             .into_first_result().await.map_err(|e| e.to_string())?;
         for row in index_rows {
             let name = row.get::<&str, _>("index_name").unwrap_or("").to_string();
             let column = row.get::<&str, _>("column_name").unwrap_or("").to_string();
             let included = row.get::<bool, _>("is_included_column").unwrap_or(false);
+            let descending = row.get::<bool, _>("is_descending_key").unwrap_or(false);
             if let Some(index) = table.indexes.iter_mut().find(|index| index.name == name) {
                 if included {
                     index.included_columns.push(column);
                 } else {
                     index.key_columns.push(column);
+                    index.key_columns_descending.push(descending);
                 }
             } else {
                 table.indexes.push(IndexMetadata {
@@ -429,6 +431,11 @@ impl SqlServerReader {
                         Vec::new()
                     } else {
                         vec![column.clone()]
+                    },
+                    key_columns_descending: if included {
+                        Vec::new()
+                    } else {
+                        vec![descending]
                     },
                     included_columns: if included { vec![column] } else { Vec::new() },
                     filter_definition: row.get::<&str, _>("filter_definition").map(str::to_string),

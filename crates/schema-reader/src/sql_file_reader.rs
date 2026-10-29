@@ -595,7 +595,7 @@ impl SqlFileReader {
         let target_table_id = Self::parse_object_identifier(table_token);
 
         // Colunas Chave
-        let key_cols = Self::extract_parenthesized_columns(after_on);
+        let (key_cols, key_cols_descending) = Self::extract_index_keys(after_on);
 
         // Cláusula INCLUDE
         let mut included_cols = Vec::new();
@@ -619,7 +619,8 @@ impl SqlFileReader {
                 name: idx_name,
                 is_unique,
                 is_clustered,
-                key_columns: key_cols,
+                key_columns: key_cols.clone(),
+                key_columns_descending: key_cols_descending,
                 included_columns: included_cols,
                 filter_definition: filter_def,
             },
@@ -694,6 +695,32 @@ impl SqlFileReader {
         cols
     }
 
+    fn extract_index_keys(text: &str) -> (Vec<String>, Vec<bool>) {
+        let Some(start) = text.find('(') else {
+            return (Vec::new(), Vec::new());
+        };
+        let Some(relative_end) = text[start + 1..].find(')') else {
+            return (Vec::new(), Vec::new());
+        };
+        let inside = &text[start + 1..start + 1 + relative_end];
+        let mut columns = Vec::new();
+        let mut descending = Vec::new();
+        for item in inside.split(',') {
+            let mut words = item.split_whitespace();
+            let Some(column) = words.next() else {
+                continue;
+            };
+            let column = column.trim_matches(|character| character == '[' || character == ']');
+            if column.is_empty() {
+                continue;
+            }
+            let is_descending = words.any(|word| word.eq_ignore_ascii_case("DESC"));
+            columns.push(column.to_string());
+            descending.push(is_descending);
+        }
+        (columns, descending)
+    }
+
     fn parse_object_identifier(raw: &str) -> (String, String) {
         let clean = raw.trim_matches(|c| c == ';' || c == ',');
         if let Some((s, n)) = clean.split_once('.') {
@@ -755,6 +782,16 @@ GO
         assert_eq!(idx.included_columns, vec!["Notes"]);
         assert!(idx.filter_definition.is_some());
         assert_eq!(snap.views.len(), 1);
+    }
+
+    #[test]
+    fn parses_descending_index_key_from_sql_file() {
+        let index = SqlFileReader::parse_create_index(
+            "CREATE INDEX [IX_Test] ON [dbo].[Test] ([First] ASC, [Second] DESC)",
+        )
+        .expect("index should parse");
+        assert_eq!(index.1.key_columns, vec!["First", "Second"]);
+        assert_eq!(index.1.key_columns_descending, vec![false, true]);
     }
 
     #[test]

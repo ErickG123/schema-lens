@@ -48,6 +48,25 @@ describe('ImpactAnalysisService', () => {
     assert.deepStrictEqual(service.analyzeRisks([row]), service.analyzeRisks([row]));
   });
 
+  it('keeps the generated operation, availability reason and destructive state linked to the same diff', () => {
+    const row = diff({
+      id: 'diff-42',
+      generatedSql: 'USE [TargetDb];\nGO\nALTER TABLE [alpha].[Products] DROP COLUMN [OldCode];',
+      sqlStatus: 'available',
+      isDestructive: true
+    });
+    const alert = service.analyzeRisks([row])[0];
+    assert.strictEqual(alert.differenceId, 'diff-42');
+    assert.strictEqual(alert.generatedSql, row.generatedSql);
+    assert.strictEqual(alert.sqlStatus, 'available');
+    assert.strictEqual(alert.isDestructive, true);
+
+    const unavailable = service.analyzeRisks([diff({ id: 'diff-43', sqlUnavailableReason: 'Snapshot missing column metadata.', sqlStatus: 'unavailable' })])[0];
+    assert.strictEqual(unavailable.differenceId, 'diff-43');
+    assert.strictEqual(unavailable.generatedSql, undefined);
+    assert.strictEqual(unavailable.sqlUnavailableReason, 'Snapshot missing column metadata.');
+  });
+
   it('does not expose an executable plan without snapshot-validated prerequisites', () => {
     assert.deepStrictEqual(service.generateMigrationPlan([diff({})]), []);
   });

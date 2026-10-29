@@ -101,6 +101,10 @@ export class ImpactAnalysisService {
     const targetOnly = missingSource;
     return {
       id: `risk-${index + 1}-${this.slug(diff.objectName)}-${property || 'object'}`,
+      differenceId: diff.id,
+      generatedSql: diff.generatedSql,
+      sqlUnavailableReason: diff.sqlUnavailableReason,
+      sqlStatus: diff.sqlStatus || (diff.generatedSql ? 'available' : 'unavailable'),
       category,
       severity: unknown ? 'INFO' : diff.severity === 'CRÍTICA' ? 'CRITICAL' : diff.severity === 'MÉDIA' ? 'MEDIUM' : 'INFO',
       affectedObject: diff.objectName,
@@ -112,7 +116,7 @@ export class ImpactAnalysisService {
       potentialConsequence: consequence,
       confidence: unknown ? 'Indeterminate' : 'Inferred',
       recommendedAction: recommendation,
-      isDestructive: targetOnly || (diff.severity === 'CRÍTICA' && category === 'data'),
+      isDestructive: diff.isDestructive ?? (targetOnly || (diff.severity === 'CRÍTICA' && category === 'data')),
       dependencies: []
     };
   }

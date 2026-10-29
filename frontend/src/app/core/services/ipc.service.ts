@@ -42,7 +42,7 @@ export class TauriIpcService {
 
       return selected;
     } catch (err) {
-      console.warn('[Dialog Error] Falha ao abrir diÃ¡logo nativo via plugin:', err);
+      console.warn('[Dialog Error] Falha ao abrir diálogo nativo via plugin:', err);
       return null;
     }
   }

@@ -51,6 +51,7 @@ fn test_identical_schemas_with_different_orders_produce_zero_diffs() {
             is_unique: true,
             is_clustered: false,
             key_columns: vec!["Email".to_string()],
+            key_columns_descending: vec![false],
             included_columns: vec![],
             filter_definition: None,
         }],

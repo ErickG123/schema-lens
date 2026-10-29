@@ -71,6 +71,7 @@ pub struct RunComparisonResult {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct DiffItemDto {
+    pub id: String,
     #[serde(default, rename = "objectType")]
     pub object_type: Option<String>,
     pub severity: String,
@@ -89,6 +90,14 @@ pub struct DiffItemDto {
     pub risk_assessment: Option<String>,
     #[serde(default)]
     pub confidence: Option<String>,
+    #[serde(default, rename = "generatedSql")]
+    pub generated_sql: Option<String>,
+    #[serde(default, rename = "sqlUnavailableReason")]
+    pub sql_unavailable_reason: Option<String>,
+    #[serde(default, rename = "sqlStatus")]
+    pub sql_status: String,
+    #[serde(default, rename = "isDestructive")]
+    pub is_destructive: bool,
 }
 
 pub struct AppService;

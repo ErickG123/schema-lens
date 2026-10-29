@@ -62,7 +62,7 @@ export class ComparisonHistoryService {
     try {
       localStorage.setItem(this.STORAGE_KEY, JSON.stringify(entries));
     } catch (e) {
-      console.warn('Erro ao persistir histÃ³rico:', e);
+      console.warn('Erro ao persistir histórico:', e);
     }
   }
 }

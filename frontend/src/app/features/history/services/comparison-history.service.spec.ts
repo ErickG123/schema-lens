@@ -23,7 +23,7 @@ describe('ComparisonHistoryService Unit Tests', () => {
       severity: 'CR\u00CDTICA',
       schema: 'dbo',
       objectName: '[dbo].[Orders].Status',
-      category: 'DivergÃªncia de Propriedade',
+      category: 'Divergência de Propriedade',
       valueSource: 'VARCHAR(20)',
       valueTarget: 'VARCHAR(10)',
       details: 'Tamanho menor no destino.'

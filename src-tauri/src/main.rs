@@ -15,9 +15,16 @@ use std::sync::{
 };
 use tauri::State;
 
+#[derive(Clone)]
+struct LatestComparison {
+    result: schema_lens_domain::ComparisonRunResult,
+    source_snapshot: schema_lens_domain::DatabaseSnapshot,
+    target_snapshot: schema_lens_domain::DatabaseSnapshot,
+}
+
 #[derive(Default)]
 struct AppState {
-    latest_comparison: Mutex<Option<schema_lens_domain::ComparisonRunResult>>,
+    latest_comparison: Mutex<Option<LatestComparison>>,
     generation: AtomicU64,
 }
 
@@ -86,42 +93,68 @@ async fn run_comparison(
         .differences
         .iter()
         .cloned()
-        .map(|d| DiffItemDto {
-            object_type: Some(format!("{:?}", d.object_type)),
-            severity: match d.severity {
-                schema_lens_domain::DifferenceSeverity::Critical => "CR\u{00cd}TICA",
-                schema_lens_domain::DifferenceSeverity::Medium => "M\u{00c9}DIA",
-                _ => "BAIXA",
-            }
-            .into(),
-            schema: d.schema_name,
-            object_name: d.object_name,
-            category: match d.category {
-                schema_lens_domain::DifferenceCategory::MissingInTarget => "Ausente no Destino",
-                schema_lens_domain::DifferenceCategory::MissingInSource => "Ausente na Origem",
-                schema_lens_domain::DifferenceCategory::PropertyMismatch => {
-                    "Diverg\u{00ea}ncia de Propriedade"
+        .map(|d| {
+            let generated = SqlGenerator::generate_for_difference(
+                &d,
+                &target_snapshot.database_name,
+                &source_snapshot,
+                &target_snapshot,
+            );
+            let (generated_sql, unavailable_reason, sql_status, is_destructive) = match generated {
+                Ok(operation) => (
+                    Some(operation.sql),
+                    None,
+                    "available".to_string(),
+                    operation.is_destructive,
+                ),
+                Err(reason) => (None, Some(reason), "unavailable".to_string(), false),
+            };
+            DiffItemDto {
+                id: d.id,
+                object_type: Some(format!("{:?}", d.object_type)),
+                severity: match d.severity {
+                    schema_lens_domain::DifferenceSeverity::Critical => "CR\u{00cd}TICA",
+                    schema_lens_domain::DifferenceSeverity::Medium => "M\u{00c9}DIA",
+                    _ => "BAIXA",
                 }
-                schema_lens_domain::DifferenceCategory::DefinitionMismatch => {
-                    "Diverg\u{00ea}ncia de Defini\u{00e7}\u{00e3}o"
+                .into(),
+                schema: d.schema_name,
+                object_name: d.object_name,
+                category: match d.category {
+                    schema_lens_domain::DifferenceCategory::MissingInTarget => "Ausente no Destino",
+                    schema_lens_domain::DifferenceCategory::MissingInSource => "Ausente na Origem",
+                    schema_lens_domain::DifferenceCategory::PropertyMismatch => {
+                        "Diverg\u{00ea}ncia de Propriedade"
+                    }
+                    schema_lens_domain::DifferenceCategory::DefinitionMismatch => {
+                        "Diverg\u{00ea}ncia de Defini\u{00e7}\u{00e3}o"
+                    }
+                    schema_lens_domain::DifferenceCategory::Indeterminate => "Indeterminado",
+                    _ => "Diferen\u{00e7}a",
                 }
-                schema_lens_domain::DifferenceCategory::Indeterminate => "Indeterminado",
-                _ => "Diferen\u{00e7}a",
+                .into(),
+                property_name: d.property_name,
+                value_source: d.value_source.unwrap_or_else(|| "Absent".into()),
+                value_target: d.value_target.unwrap_or_else(|| "Absent".into()),
+                details: d.explanation,
+                risk_assessment: d.risk_assessment,
+                confidence: Some(format!("{:?}", d.confidence).to_lowercase()),
+                generated_sql,
+                sql_unavailable_reason: unavailable_reason,
+                sql_status,
+                is_destructive,
             }
-            .into(),
-            property_name: d.property_name,
-            value_source: d.value_source.unwrap_or_else(|| "Absent".into()),
-            value_target: d.value_target.unwrap_or_else(|| "Absent".into()),
-            details: d.explanation,
-            risk_assessment: d.risk_assessment,
-            confidence: Some(format!("{:?}", d.confidence).to_lowercase()),
         })
         .collect::<Vec<_>>();
     if state.generation.load(Ordering::SeqCst) == generation {
         *state
             .latest_comparison
             .lock()
-            .map_err(|_| "Comparison state is unavailable".to_string())? = Some(result);
+            .map_err(|_| "Comparison state is unavailable".to_string())? = Some(LatestComparison {
+            result: result.clone(),
+            source_snapshot: source_snapshot.clone(),
+            target_snapshot: target_snapshot.clone(),
+        });
     }
     Ok(RunComparisonResult {
         success: true,
@@ -199,10 +232,25 @@ async fn generate_migration_sql(state: State<'_, AppState>) -> Result<String, St
         .map_err(|_| "Comparison state is unavailable".to_string())?
         .clone()
         .ok_or_else(|| "Run a real comparison before generating a script.".to_string())?;
-    if latest.differences.is_empty() {
+    if latest.result.differences.is_empty() {
         return Err("The current comparison has no differences to export.".into());
     }
-    Ok(SqlGenerator::plan_and_generate(&latest.differences, &latest.target_database).script_sql)
+    let plan = SqlGenerator::plan_and_generate_with_snapshots(
+        &latest.result.differences,
+        &latest.target_snapshot.database_name,
+        Some(&latest.source_snapshot),
+        Some(&latest.target_snapshot),
+    );
+    if !plan.unsupported_operations.is_empty() {
+        return Err(format!(
+            "Complete SQL export is unavailable because some operations are unsupported: {}",
+            plan.unsupported_operations.join("; ")
+        ));
+    }
+    if plan.steps.is_empty() {
+        return Err("No supported SQL operations are available for export.".into());
+    }
+    Ok(plan.script_sql)
 }
 
 #[tauri::command]

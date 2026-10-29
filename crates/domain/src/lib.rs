@@ -147,6 +147,7 @@ pub struct IndexMetadata {
     pub is_unique: bool,
     pub is_clustered: bool,
     pub key_columns: Vec<String>,
+    pub key_columns_descending: Vec<bool>,
     pub included_columns: Vec<String>,
     pub filter_definition: Option<String>,
 }
@@ -260,6 +261,7 @@ pub struct MigrationPlan {
     pub generated_at_utc: String,
     pub total_steps: usize,
     pub destructive_steps: usize,
+    pub unsupported_operations: Vec<String>,
     pub script_sql: String,
     pub steps: Vec<MigrationStep>,
 }

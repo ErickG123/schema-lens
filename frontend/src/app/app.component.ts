@@ -12,6 +12,7 @@ import { ObjectDetailPanelComponent } from './features/inspection/components/obj
 import { DetailedObjectInspection } from './features/inspection/models/inspection.model';
 import { ObjectInspectionService } from './features/inspection/services/object-inspection.service';
 import { ImpactDashboardComponent } from './features/impact-analysis/components/impact-dashboard.component';
+import { MigrationRiskAlert } from './features/impact-analysis/models/impact.model';
 import { ComparisonHistoryComponent } from './features/history/components/comparison-history.component';
 import { ComparisonHistoryService } from './features/history/services/comparison-history.service';
 import { ToastContainerComponent } from './features/notifications/components/toast-container.component';
@@ -118,7 +119,7 @@ export class AppComponent {
       const matchCat = this.selectedCategory === 'all' || 
         (this.selectedCategory === 'missing_in_target' && d.category.includes('Destino')) ||
         (this.selectedCategory === 'missing_in_source' && d.category.includes('Origem')) ||
-        (this.selectedCategory === 'property_mismatch' && (d.category.includes('DivergÃªncia') || d.category.includes('Propriedade')));
+        (this.selectedCategory === 'property_mismatch' && (d.category.includes('Divergência') || d.category.includes('Propriedade')));
 
       return matchText && matchCat;
     });
@@ -135,15 +136,15 @@ export class AppComponent {
       config.confirmedIdentity = res?.databaseName ? `${res.serverName || 'Unknown server'} / ${res.databaseName}` : undefined;
       config.confirmedDatabaseName = res?.databaseName;
       this.notify.success(
-        `ConexÃ£o (${side === 'source' ? 'Origem' : 'Destino'})`,
-        res?.message || 'ConexÃ£o validada com sucesso.'
+        `Conexão (${side === 'source' ? 'Origem' : 'Destino'})`,
+        res?.message || 'Conexão validada com sucesso.'
       );
     } catch (e: any) {
       config.testStatus = 'error';
       config.confirmedIdentity = undefined;
       config.confirmedDatabaseName = undefined;
       this.notify.error(
-        `Falha de ConexÃ£o (${side === 'source' ? 'Origem' : 'Destino'})`,
+        `Falha de Conexão (${side === 'source' ? 'Origem' : 'Destino'})`,
         e?.message || String(e)
       );
     } finally {
@@ -225,13 +226,13 @@ export class AppComponent {
   onDiagramTableSelected(tableId: string): void {
     this.filterQuery = tableId;
     this.activeInspection = this.inspectionService.inspectObject(tableId);
-    this.notify.info('Objeto Selecionado', `InspeÃ§Ã£o detalhada aberta para ${tableId}`);
+    this.notify.info('Objeto Selecionado', `Inspeção detalhada aberta para ${tableId}`);
   }
 
   onDiagramOpenDiffs(tableId: string): void {
     this.filterQuery = tableId;
     this.activeView = 'table';
-    this.notify.info('NavegaÃ§Ã£o para DiferenÃ§as', `Filtro aplicado para exibir discrepÃ¢ncias de ${tableId}`);
+    this.notify.info('Navegação para Diferenças', `Filtro aplicado para exibir discrepâncias de ${tableId}`);
   }
 
   onRestoreSnapshot(diffs: DiffViewRow[]): void {
@@ -240,7 +241,7 @@ export class AppComponent {
     this.targetTables = [];
     this.hasRun = true;
     this.activeView = 'table';
-    this.notify.info('Snapshot Restaurado', `Carregadas ${diffs.length} diferenÃ§as histÃ³ricas.`);
+    this.notify.info('Snapshot Restaurado', `Carregadas ${diffs.length} diferenças históricas.`);
   }
 
   private generateTimestamp(): string {
@@ -251,7 +252,7 @@ export class AppComponent {
 
   async exportSql() {
     if (!this.hasRun || this.diffs.length === 0) {
-      this.notify.warning('ExportaÃ§Ã£o SQL', 'Execute uma comparaÃ§Ã£o antes de gerar o script de migraÃ§Ã£o.');
+      this.notify.warning('Exportação SQL', 'Execute uma comparação antes de gerar o script de migração.');
       return;
     }
 
@@ -268,24 +269,81 @@ export class AppComponent {
     this.exporting = true;
 
     try {
+      const sqlContent = await this.ipc.generateSql();
       const defaultFileName = `SchemaLens-Migration-${this.generateTimestamp()}.sql`;
       const filePath = await this.ipc.promptSaveFilePath(defaultFileName, 'Arquivo SQL', 'sql');
 
       if (!filePath) {
-        this.notify.info('ExportaÃ§Ã£o Cancelada', 'OperaÃ§Ã£o cancelada pelo usuÃ¡rio.');
+        this.notify.info('Exportação Cancelada', 'Operação cancelada pelo usuário.');
         return;
       }
 
-      const sqlContent = await this.ipc.generateSql();
       const saveResult = await this.ipc.saveFile(filePath, sqlContent);
 
       if (saveResult.saved) {
         this.notify.success('Script SQL Exportado', saveResult.message);
       } else {
-        this.notify.warning('ExportaÃ§Ã£o nÃ£o ConcluÃ­da', saveResult.message);
+        this.notify.warning('Exportação não Concluída', saveResult.message);
       }
     } catch (e: any) {
-      this.notify.error('Falha na GravaÃ§Ã£o SQL', e?.message || String(e));
+      this.notify.error('Falha na geração/exportação SQL', e?.message || String(e));
+    } finally {
+      this.exporting = false;
+    }
+  }
+
+  async exportIndividualSql(row: DiffViewRow): Promise<void> {
+    if (!row.generatedSql) {
+      this.notify.warning('SQL indisponível', row.sqlUnavailableReason || 'Não há metadados suficientes para gerar esta operação.');
+      return;
+    }
+    if (row.isDestructive) {
+      const accepted = await this.notify.confirm({
+        title: 'Revisar operação destrutiva',
+        message: `A operação para ${row.objectName} pode remover ou alterar dados/estrutura. Confirme a revisão antes de exportar.`,
+        confirmLabel: 'Exportar para revisão',
+        cancelLabel: 'Cancelar'
+      });
+      if (!accepted) return;
+    }
+    const safeObjectName = row.objectName.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 80);
+    await this.exportSqlFile(row.generatedSql, `SchemaLens-${safeObjectName}-${this.generateTimestamp()}.sql`);
+  }
+
+  async exportRiskSql(alert: MigrationRiskAlert): Promise<void> {
+    if (!alert.generatedSql) {
+      this.notify.warning('SQL indisponível', alert.sqlUnavailableReason || 'Não há metadados suficientes para gerar esta operação.');
+      return;
+    }
+    if (alert.isDestructive) {
+      const accepted = await this.notify.confirm({
+        title: 'Revisar operação destrutiva',
+        message: `A operação para ${alert.affectedObject} é destrutiva. Revise a perda potencial e as dependências antes de exportar.`,
+        confirmLabel: 'Exportar para revisão',
+        cancelLabel: 'Cancelar'
+      });
+      if (!accepted) return;
+    }
+    await this.exportSqlFile(
+      alert.generatedSql,
+      `SchemaLens-${alert.affectedObject.replace(/[^a-z0-9_-]+/gi, '_').slice(0, 80)}-${this.generateTimestamp()}.sql`
+    );
+  }
+
+  private async exportSqlFile(sqlContent: string, defaultFileName: string): Promise<void> {
+    if (this.exporting) return;
+    this.exporting = true;
+    try {
+      const filePath = await this.ipc.promptSaveFilePath(defaultFileName, 'Arquivo SQL', 'sql');
+      if (!filePath) {
+        this.notify.info('Exportação cancelada', 'Nenhum arquivo foi salvo.');
+        return;
+      }
+      const saveResult = await this.ipc.saveFile(filePath, sqlContent);
+      if (saveResult.saved) this.notify.success('Script SQL exportado', saveResult.message);
+      else this.notify.warning('Exportação não concluída', saveResult.message);
+    } catch (e: any) {
+      this.notify.error('Falha na exportação SQL', e?.message || String(e));
     } finally {
       this.exporting = false;
     }
@@ -293,7 +351,7 @@ export class AppComponent {
 
   async exportJson() {
     if (!this.hasRun || this.diffs.length === 0) {
-      this.notify.warning('ExportaÃ§Ã£o JSON', 'Execute uma comparaÃ§Ã£o antes de exportar o relatÃ³rio.');
+      this.notify.warning('Exportação JSON', 'Execute uma comparação antes de exportar o relatório.');
       return;
     }
 
@@ -305,7 +363,7 @@ export class AppComponent {
       const filePath = await this.ipc.promptSaveFilePath(defaultFileName, 'Arquivo JSON', 'json');
 
       if (!filePath) {
-        this.notify.info('ExportaÃ§Ã£o Cancelada', 'OperaÃ§Ã£o cancelada pelo usuÃ¡rio.');
+        this.notify.info('Exportação Cancelada', 'Operação cancelada pelo usuário.');
         return;
       }
 
@@ -337,12 +395,12 @@ export class AppComponent {
       const saveResult = await this.ipc.saveFile(filePath, jsonContent);
 
       if (saveResult.saved) {
-        this.notify.success('RelatÃ³rio JSON Exportado', saveResult.message);
+        this.notify.success('Relatório JSON Exportado', saveResult.message);
       } else {
-        this.notify.warning('ExportaÃ§Ã£o nÃ£o ConcluÃ­da', saveResult.message);
+        this.notify.warning('Exportação não Concluída', saveResult.message);
       }
     } catch (e: any) {
-      this.notify.error('Falha na GravaÃ§Ã£o JSON', e?.message || String(e));
+      this.notify.error('Falha na Gravação JSON', e?.message || String(e));
     } finally {
       this.exporting = false;
     }

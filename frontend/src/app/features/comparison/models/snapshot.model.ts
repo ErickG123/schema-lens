@@ -32,5 +32,5 @@ export interface SnapshotTable {
   check_constraints: { name: string; definition: string; is_disabled: boolean }[];
   default_constraints: { name: string; column_name: string; definition: string }[];
   unique_constraints: { name: string; is_clustered: boolean; columns: string[] }[];
-  indexes: { name: string; is_unique: boolean; is_clustered: boolean; key_columns: string[]; included_columns: string[]; filter_definition?: string | null }[];
+  indexes: { name: string; is_unique: boolean; is_clustered: boolean; key_columns: string[]; key_columns_descending: boolean[]; included_columns: string[]; filter_definition?: string | null }[];
 }

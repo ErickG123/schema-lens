@@ -11,6 +11,10 @@ export interface DependencyPathItem {
 
 export interface MigrationRiskAlert {
   id: string;
+  differenceId?: string;
+  generatedSql?: string | null;
+  sqlUnavailableReason?: string | null;
+  sqlStatus?: 'available' | 'unavailable';
   category?: 'structural' | 'data' | 'compatibility' | 'availability' | 'integrity' | 'unknown';
   severity: ImpactRiskSeverity;
   affectedObject: string;

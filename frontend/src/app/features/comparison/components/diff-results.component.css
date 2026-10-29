@@ -91,7 +91,7 @@ td {
   vertical-align: middle;
   line-height: 1.45;
   white-space: normal;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word;
 }
 
 th {
@@ -106,6 +106,9 @@ th {
 .code-font {
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
   font-size: 0.8rem;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .text-highlight {
@@ -188,4 +191,112 @@ th {
 
 .success-content .empty-title {
   color: #34d399;
+}
+
+.sql-cell {
+  white-space: nowrap;
+  text-align: center;
+}
+
+.sql-view-button {
+  padding: 5px 8px;
+  border: 1px solid #334155;
+  border-radius: 4px;
+  background: #131c2e;
+  color: #93c5fd;
+  font-size: 0.72rem;
+  cursor: pointer;
+}
+
+.sql-view-button:hover {
+  border-color: #3b82f6;
+  background: #1e293b;
+}
+
+.sql-preview-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: grid;
+  place-items: center;
+  padding: 20px;
+  background: rgba(2, 6, 23, 0.78);
+}
+
+.sql-preview-dialog {
+  display: flex;
+  flex-direction: column;
+  width: min(960px, 100%);
+  max-height: min(780px, 90vh);
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background: #0d131f;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.55);
+}
+
+.sql-preview-header,
+.sql-preview-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 18px;
+}
+
+.sql-preview-header {
+  border-bottom: 1px solid var(--border-color);
+}
+
+.sql-preview-header h2 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 1rem;
+}
+
+.sql-preview-header p {
+  margin: 5px 0 0;
+  color: var(--text-muted);
+  font-size: 0.78rem;
+}
+
+.sql-close-button {
+  border: 0;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 1.6rem;
+  cursor: pointer;
+}
+
+.sql-preview-code {
+  flex: 1 1 auto;
+  min-height: 160px;
+  margin: 0;
+  padding: 16px 18px;
+  overflow: auto;
+  color: #cbd5e1;
+  background: #070b12;
+  font: 0.8rem/1.55 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+  tab-size: 4;
+}
+
+.sql-destructive-warning,
+.sql-unavailable-message {
+  margin: 14px 18px 0;
+  padding: 10px 12px;
+  border: 1px solid rgba(245, 158, 11, 0.35);
+  border-radius: 5px;
+  color: #fcd34d;
+  background: rgba(245, 158, 11, 0.08);
+  font-size: 0.82rem;
+}
+
+.sql-unavailable-message p {
+  margin: 6px 0 0;
+  overflow-wrap: anywhere;
+}
+
+.sql-preview-actions {
+  justify-content: flex-end;
+  border-top: 1px solid var(--border-color);
 }

@@ -897,6 +897,7 @@ impl DiffEngine {
         for si in &src_table.indexes {
             if let Some(ti) = tgt_idxs.get(si.name.as_str()) {
                 if si.key_columns != ti.key_columns
+                    || si.key_columns_descending != ti.key_columns_descending
                     || si.included_columns != ti.included_columns
                     || si.is_unique != ti.is_unique
                     || si.is_clustered != ti.is_clustered
@@ -910,12 +911,20 @@ impl DiffEngine {
                         category: DifferenceCategory::PropertyMismatch,
                         property_name: Some("definition".to_string()),
                         value_source: Some(format!(
-                            "Keys: {:?} Inc: {:?} Unique: {} Filter: {:?}",
-                            si.key_columns, si.included_columns, si.is_unique, si.filter_definition
+                            "Keys: {:?} Desc: {:?} Inc: {:?} Unique: {} Filter: {:?}",
+                            si.key_columns,
+                            si.key_columns_descending,
+                            si.included_columns,
+                            si.is_unique,
+                            si.filter_definition
                         )),
                         value_target: Some(format!(
-                            "Keys: {:?} Inc: {:?} Unique: {} Filter: {:?}",
-                            ti.key_columns, ti.included_columns, ti.is_unique, ti.filter_definition
+                            "Keys: {:?} Desc: {:?} Inc: {:?} Unique: {} Filter: {:?}",
+                            ti.key_columns,
+                            ti.key_columns_descending,
+                            ti.included_columns,
+                            ti.is_unique,
+                            ti.filter_definition
                         )),
                         severity: DifferenceSeverity::Medium,
                         confidence: ConfidenceStatus::High,

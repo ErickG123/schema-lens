@@ -14,6 +14,7 @@ import { ImpactAnalysisService } from '../services/impact-analysis.service';
 export class ImpactDashboardComponent implements OnChanges {
   @Input() diffs: DiffViewRow[] = [];
   @Output() onNavigate = new EventEmitter<string>();
+  @Output() onExportSql = new EventEmitter<MigrationRiskAlert>();
 
   private impactService = inject(ImpactAnalysisService);
 

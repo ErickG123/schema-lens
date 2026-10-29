@@ -1,10 +1,20 @@
+:host {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
 .impact-container {
   display: flex;
   flex-direction: column;
-  flex: 1;
+  flex: 1 1 0;
   width: 100%;
-  height: 100%;
-  overflow-y: auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  overscroll-behavior: contain;
   background: #090d16;
   padding: 20px;
 }
@@ -16,6 +26,7 @@
   padding-bottom: 16px;
   border-bottom: 1px solid var(--border-color);
   margin-bottom: 20px;
+  flex-shrink: 0;
 }
 
 .impact-title {
@@ -49,8 +60,32 @@
 
 .impact-body {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  flex: 1 1 0;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 20px;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.alerts-section,
+.plan-section {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.alerts-list,
+.plan-steps {
+  flex: 1 1 0;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+  padding: 0 8px 8px 0;
 }
 
 .section-title {
@@ -120,6 +155,7 @@
   font-size: 0.82rem;
   color: #cbd5e1;
   margin: 4px 0 10px 0;
+  overflow-wrap: break-word;
 }
 
 .consequence-box, .action-box {
@@ -249,6 +285,7 @@
 .step-desc {
   font-size: 0.78rem;
   color: var(--text-muted);
+  overflow-wrap: break-word;
 }
 
 .step-sql {
@@ -261,4 +298,66 @@
   font-family: ui-monospace, monospace;
   margin: 4px 0 0 0;
   white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: auto;
+}
+
+.risk-sql-details {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: #090d16;
+}
+
+.risk-sql-details summary {
+  color: #93c5fd;
+  font-size: 0.78rem;
+  cursor: pointer;
+}
+
+.risk-sql-code {
+  max-height: 320px;
+  margin: 10px 0;
+  padding: 10px;
+  overflow: auto;
+  color: #cbd5e1;
+  background: #070b12;
+  font: 0.72rem/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  white-space: pre;
+}
+
+.sql-unavailable-reason {
+  color: #fcd34d;
+  font-size: 0.76rem;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1100px) {
+  .impact-body {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 12px;
+  }
+
+  .impact-container {
+    padding: 14px;
+  }
+
+  .impact-header {
+    align-items: flex-start;
+    gap: 12px;
+  }
+
+  .risk-stats {
+    flex-wrap: wrap;
+    justify-content: flex-end;
+  }
+}
+
+@media (max-width: 760px) {
+  .impact-body {
+    grid-template-columns: minmax(0, 1fr);
+    grid-template-rows: minmax(240px, 1fr) minmax(240px, 1fr);
+    overflow: auto;
+  }
 }

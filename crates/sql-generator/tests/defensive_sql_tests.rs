@@ -37,7 +37,8 @@ fn test_sql_generator_handles_transaction_and_idempotency_blocks() {
     ];
 
     let plan = SqlGenerator::plan_and_generate(&diffs, "ProductionTarget");
-    assert_eq!(plan.total_steps, 2);
+    assert_eq!(plan.total_steps, 1);
+    assert_eq!(plan.unsupported_operations.len(), 1);
     assert_eq!(plan.destructive_steps, 0);
 
     // Validar proteções defensivas do script
@@ -45,9 +46,11 @@ fn test_sql_generator_handles_transaction_and_idempotency_blocks() {
     assert!(plan
         .script_sql
         .contains("IF NOT EXISTS (SELECT * FROM sys.schemas WHERE name = N'audit')"));
-    assert!(plan
+    assert!(!plan
         .script_sql
         .contains("IF OBJECT_ID(N'[audit].[ChangeLog]', 'U') IS NULL"));
+    assert!(!plan.script_sql.contains("PlaceholderId"));
+    assert!(plan.unsupported_operations[0].contains("ChangeLog"));
 }
 
 #[test]

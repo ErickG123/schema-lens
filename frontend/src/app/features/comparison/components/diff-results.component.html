@@ -31,11 +31,12 @@
           <th style="width: 200px;">Origem (A)</th>
           <th style="width: 200px;">Destino (B)</th>
           <th>Impacto & Risco Operacional</th>
+          <th style="width: 130px;">SQL</th>
         </tr>
       </thead>
       <tbody>
         <tr *ngIf="!hasRun">
-          <td colspan="7" class="empty-state">
+          <td colspan="8" class="empty-state">
             <div class="empty-content">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <circle cx="12" cy="12" r="10"></circle>
@@ -49,7 +50,7 @@
         </tr>
 
         <tr *ngIf="hasRun && diffs.length === 0">
-          <td colspan="7" class="empty-state">
+          <td colspan="8" class="empty-state">
             <div class="empty-content success-content">
               <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
                 <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
@@ -67,14 +68,51 @@
               {{ row.severity }}
             </span>
           </td>
-          <td class="code-font text-muted">{{ row.schema }}</td>
-          <td class="code-font font-bold text-highlight">{{ row.objectName }}</td>
+          <td class="code-font text-muted" [title]="row.schema">{{ row.schema }}</td>
+          <td class="code-font font-bold text-highlight" [title]="row.objectName">{{ row.objectName }}</td>
           <td class="category-cell">{{ row.category }}</td>
-          <td class="code-font diff-val source-val">{{ row.valueSource }}</td>
-          <td class="code-font diff-val target-val">{{ row.valueTarget }}</td>
+          <td class="code-font diff-val source-val" [title]="row.valueSource">{{ row.valueSource }}</td>
+          <td class="code-font diff-val target-val" [title]="row.valueTarget">{{ row.valueTarget }}</td>
           <td class="details-cell">{{ row.details }}</td>
+          <td class="sql-cell" (click)="$event.stopPropagation()">
+            <button type="button" class="sql-view-button" (click)="openSqlPreview(row)">
+              {{ row.generatedSql ? 'Ver SQL' : 'Indisponível' }}
+            </button>
+          </td>
         </tr>
       </tbody>
     </table>
+  </div>
+
+  <div *ngIf="selectedSql" class="sql-preview-backdrop" (click)="closeSqlPreview()">
+    <section class="sql-preview-dialog" role="dialog" aria-modal="true" aria-label="SQL da diferença" (click)="$event.stopPropagation()">
+      <header class="sql-preview-header">
+        <div>
+          <h2>SQL da diferença</h2>
+          <p>{{ selectedSql.objectName }} · {{ selectedSql.category }}</p>
+        </div>
+        <button type="button" class="sql-close-button" aria-label="Fechar" (click)="closeSqlPreview()">×</button>
+      </header>
+
+      <div *ngIf="selectedSql.isDestructive" class="sql-destructive-warning">
+        Operação destrutiva. Revise dados e dependências antes de usar este script.
+      </div>
+      <pre *ngIf="selectedSql.generatedSql; else unavailableSql" class="sql-preview-code">{{ selectedSql.generatedSql }}</pre>
+      <ng-template #unavailableSql>
+        <div class="sql-unavailable-message">
+          <b>Não foi possível gerar SQL para esta diferença.</b>
+          <p>{{ selectedSql.sqlUnavailableReason || 'A operação não é suportada com os metadados disponíveis.' }}</p>
+        </div>
+      </ng-template>
+
+      <footer class="sql-preview-actions">
+        <button *ngIf="selectedSql.generatedSql" type="button" class="btn btn-secondary" (click)="copySql()">
+          {{ copiedSql ? 'Copiado' : 'Copiar SQL' }}
+        </button>
+        <button *ngIf="selectedSql.generatedSql" type="button" class="btn btn-primary" (click)="onExportSql.emit(selectedSql)">
+          Exportar .sql
+        </button>
+      </footer>
+    </section>
   </div>
 </div>

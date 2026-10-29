@@ -3,6 +3,7 @@ import { SnapshotTable } from './snapshot.model';
 export type DiffSeverity = 'CRÍTICA' | 'MÉDIA' | 'BAIXA';
 
 export interface DiffViewRow {
+  id?: string;
   objectType?: string;
   severity: DiffSeverity;
   schema: string;
@@ -14,6 +15,10 @@ export interface DiffViewRow {
   details: string;
   riskAssessment?: string;
   confidence?: 'high' | 'medium' | 'indeterminate';
+  generatedSql?: string | null;
+  sqlUnavailableReason?: string | null;
+  sqlStatus?: 'available' | 'unavailable';
+  isDestructive?: boolean;
 }
 
 export interface ComparisonReport {
