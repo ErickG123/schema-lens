@@ -625,6 +625,9 @@ impl SqlGenerator {
                                 .iter()
                                 .find(|index| index.name == idx_name_raw)
                         });
+                    let target_table = _target_snapshot.and_then(|snapshot| {
+                        Self::find_table(snapshot, &diff.schema_name, tbl_name_raw)
+                    });
                     match (diff.category, source, target) {
                         (DifferenceCategory::MissingInTarget, Some(index), _) => {
                             match Self::create_index_sql(&table, index) {
@@ -646,8 +649,56 @@ impl SqlGenerator {
                             destructive_count += 1;
                             steps.push(MigrationStep { order: 860, description: format!("Remover índice {} de {}", Self::escape_identifier(&index.name), table), sql: format!("-- WARNING: REVIEW PERFORMANCE AND UNIQUENESS IMPACT\nDROP INDEX {} ON {};\nGO\n", Self::escape_identifier(&index.name), table), is_destructive: true });
                         }
+                        (
+                            DifferenceCategory::PropertyMismatch,
+                            Some(source_index),
+                            Some(target_index),
+                        ) => {
+                            let has_other_target_clustered_key = target_index.is_clustered
+                                && target_table.is_some_and(|table| {
+                                    table.indexes.iter().any(|index| {
+                                        index.name != target_index.name && index.is_clustered
+                                    }) || table
+                                        .primary_key
+                                        .as_ref()
+                                        .is_some_and(|key| key.is_clustered)
+                                        || table
+                                            .unique_constraints
+                                            .iter()
+                                            .any(|key| key.is_clustered)
+                                });
+                            if has_other_target_clustered_key {
+                                unsupported_operations.push(format!(
+                                    "{}: clustered index replacement conflicts with another target clustered key",
+                                    diff.object_name
+                                ));
+                                continue;
+                            }
+                            match Self::create_index_sql(&table, source_index) {
+                                Ok(create_sql) => {
+                                    destructive_count += 1;
+                                    steps.push(MigrationStep {
+                                        order: 90,
+                                        description: format!(
+                                            "Replace index {} on {}",
+                                            Self::escape_identifier(&source_index.name),
+                                            table
+                                        ),
+                                        sql: format!(
+                                            "-- WARNING: REVIEW INDEX AVAILABILITY, UNIQUENESS, AND LOCK IMPACT\nDROP INDEX {} ON {};\nGO\n{}",
+                                            Self::escape_identifier(&target_index.name),
+                                            table,
+                                            create_sql
+                                        ),
+                                        is_destructive: true,
+                                    });
+                                }
+                                Err(reason) => unsupported_operations
+                                    .push(format!("{}: {reason}", diff.object_name)),
+                            }
+                        }
                         _ => unsupported_operations.push(format!(
-                            "{}: index replacement is not supported as one operation",
+                            "{}: index transition is not supported by the available snapshots",
                             diff.object_name
                         )),
                     }
@@ -846,9 +897,25 @@ impl SqlGenerator {
 
     fn column_definition(table: &TableMetadata, column: &ColumnMetadata) -> Result<String, String> {
         if column.is_computed {
-            return Err(format!(
-                "computed column '{}' cannot be reproduced because persisted state is not captured",
-                column.name
+            let definition = column
+                .computed_definition
+                .as_deref()
+                .filter(|definition| !definition.trim().is_empty())
+                .ok_or_else(|| {
+                    format!(
+                        "computed column '{}' cannot be reproduced because its expression is not captured",
+                        column.name
+                    )
+                })?;
+            return Ok(format!(
+                "{} AS {}{}",
+                Self::escape_identifier(&column.name),
+                definition,
+                if column.computed_persisted {
+                    " PERSISTED"
+                } else {
+                    ""
+                }
             ));
         }
 
@@ -1221,6 +1288,7 @@ mod tests {
                     identity_increment: Some(2),
                     is_computed: false,
                     computed_definition: None,
+                    computed_persisted: false,
                     collation: None,
                 },
                 ColumnMetadata {
@@ -1236,6 +1304,7 @@ mod tests {
                     identity_increment: None,
                     is_computed: false,
                     computed_definition: None,
+                    computed_persisted: false,
                     collation: None,
                 },
                 ColumnMetadata {
@@ -1251,6 +1320,7 @@ mod tests {
                     identity_increment: None,
                     is_computed: false,
                     computed_definition: None,
+                    computed_persisted: false,
                     collation: Some("Latin1_General_100_CI_AS".to_string()),
                 },
                 ColumnMetadata {
@@ -1266,6 +1336,7 @@ mod tests {
                     identity_increment: None,
                     is_computed: false,
                     computed_definition: None,
+                    computed_persisted: false,
                     collation: None,
                 },
                 ColumnMetadata {
@@ -1281,6 +1352,7 @@ mod tests {
                     identity_increment: None,
                     is_computed: false,
                     computed_definition: None,
+                    computed_persisted: false,
                     collation: None,
                 },
             ],
@@ -1372,6 +1444,100 @@ mod tests {
             .contains("WHERE ([ProductCode] IS NOT NULL)"));
         assert!(!plan.script_sql.contains("PlaceholderId"));
         assert!(!plan.script_sql.contains("Adicionar colunas conforme"));
+    }
+
+    #[test]
+    fn missing_table_ddl_preserves_computed_expression_and_persisted_state() {
+        let mut table = product_table();
+        table.columns.push(ColumnMetadata {
+            name: "ComputedTotal".to_string(),
+            ordinal_position: 6,
+            data_type: "computed".to_string(),
+            max_length: 0,
+            precision: 0,
+            scale: 0,
+            is_nullable: true,
+            is_identity: false,
+            identity_seed: None,
+            identity_increment: None,
+            is_computed: true,
+            computed_definition: Some("([Price] * 2)".to_string()),
+            computed_persisted: true,
+            collation: None,
+        });
+        let source = empty_snapshot("OriginDb", vec![table]);
+        let difference = SchemaDifference {
+            id: "table-with-computed".to_string(),
+            object_type: SchemaObjectType::Table,
+            schema_name: "catalog".to_string(),
+            object_name: "Product Ledger".to_string(),
+            category: DifferenceCategory::MissingInTarget,
+            property_name: None,
+            value_source: Some("table".to_string()),
+            value_target: None,
+            severity: DifferenceSeverity::Medium,
+            confidence: ConfidenceStatus::High,
+            explanation: "table missing".to_string(),
+            risk_assessment: None,
+            can_generate_sql: true,
+        };
+
+        let plan = SqlGenerator::plan_and_generate_with_snapshots(
+            &[difference],
+            "TargetDb",
+            Some(&source),
+            None,
+        );
+
+        assert!(
+            plan.unsupported_operations.is_empty(),
+            "{:?}",
+            plan.unsupported_operations
+        );
+        assert!(plan
+            .script_sql
+            .contains("[ComputedTotal] AS ([Price] * 2) PERSISTED"));
+    }
+
+    #[test]
+    fn index_definition_mismatch_generates_reviewable_drop_and_recreate() {
+        let source_table = product_table();
+        let mut target_table = product_table();
+        target_table.indexes[0].key_columns_descending = vec![false];
+        target_table.indexes[0].included_columns.clear();
+        target_table.indexes[0].filter_definition = None;
+        let source = empty_snapshot("OriginDb", vec![source_table]);
+        let target = empty_snapshot("TargetDb", vec![target_table]);
+        let difference = SchemaDifference {
+            id: "index-mismatch".to_string(),
+            object_type: SchemaObjectType::Index,
+            schema_name: "catalog".to_string(),
+            object_name: "Product Ledger.IX_ProductCode".to_string(),
+            category: DifferenceCategory::PropertyMismatch,
+            property_name: Some("definition".to_string()),
+            value_source: Some("source index definition".to_string()),
+            value_target: Some("target index definition".to_string()),
+            severity: DifferenceSeverity::Medium,
+            confidence: ConfidenceStatus::High,
+            explanation: "index differs".to_string(),
+            risk_assessment: None,
+            can_generate_sql: true,
+        };
+
+        let operation =
+            SqlGenerator::generate_for_difference(&difference, "TargetDb", &source, &target)
+                .expect("index replacement should be available");
+
+        let drop_position = operation.sql.find("DROP INDEX [IX_ProductCode]").unwrap();
+        let create_position = operation
+            .sql
+            .find("CREATE NONCLUSTERED INDEX [IX_ProductCode]")
+            .unwrap();
+        assert!(drop_position < create_position);
+        assert!(operation.sql.contains("[ProductCode] DESC"));
+        assert!(operation.sql.contains("INCLUDE ([CreatedAt])"));
+        assert!(operation.sql.contains("WHERE ([ProductCode] IS NOT NULL)"));
+        assert!(operation.is_destructive);
     }
 
     #[test]

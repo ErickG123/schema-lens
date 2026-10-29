@@ -106,6 +106,8 @@ pub struct ColumnMetadata {
     pub identity_increment: Option<i64>,
     pub is_computed: bool,
     pub computed_definition: Option<String>,
+    #[serde(default)]
+    pub computed_persisted: bool,
     pub collation: Option<String>,
 }
 

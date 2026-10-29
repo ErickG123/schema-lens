@@ -1147,6 +1147,7 @@ mod tests {
                         identity_increment: None,
                         is_computed: false,
                         computed_definition: None,
+                        computed_persisted: false,
                         collation: None,
                     },
                     ColumnMetadata {
@@ -1162,6 +1163,7 @@ mod tests {
                         identity_increment: None,
                         is_computed: false,
                         computed_definition: None,
+                        computed_persisted: false,
                         collation: None,
                     },
                 ],
@@ -1205,6 +1207,7 @@ mod tests {
                     identity_increment: None,
                     is_computed: false,
                     computed_definition: None,
+                    computed_persisted: false,
                     collation: None,
                 }], // Notes ausente
                 primary_key: None,

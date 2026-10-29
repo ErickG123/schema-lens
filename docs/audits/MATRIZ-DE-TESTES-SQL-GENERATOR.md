@@ -6,6 +6,8 @@
 | Snapshot ausente não inventa coluna/placeholder | Unitário Rust | `missing_table_without_complete_snapshot_is_explicitly_unavailable` e teste defensivo | Passou em `cargo test --workspace` |
 | Tipo, default, identity, collation, PK composta, UNIQUE, CHECK e índice | Unitário Rust | Fixture Product Ledger em `sql-generator/src/lib.rs` | Passou em `cargo test --workspace` |
 | Direção ASC/DESC no parser offline | Unitário Rust | `parses_descending_index_key_from_sql_file` | Passou em `cargo test --workspace` |
+| Computed column com expressão e PERSISTED | Unitário Rust | Parser SQL e DDL completo de tabela | Passou em `cargo test --workspace` |
+| Substituição de índice divergente | Unitário Rust | `index_definition_mismatch_generates_reviewable_drop_and_recreate` | Passou em `cargo test --workspace` |
 | SQL individual associado ao diff e alerta de risco | Angular unitário | `impact-analysis.service.spec.ts` | Passou; inclui 19 testes Angular totais |
 | Prévia, indisponibilidade, copiar e exportar | Componente Angular | Template/ações do componente de diferenças | Build Angular passou; não há E2E desktop executado |
 | Banco de destino dinâmico | Unitário Rust / auditoria | `USE` recebe nome de destino e identificadores são delimitados | Coberto em unitário, `cargo test --workspace` passou |

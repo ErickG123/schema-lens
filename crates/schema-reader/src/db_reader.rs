@@ -157,7 +157,7 @@ impl SqlServerReader {
 
             // Fetch columns for table
             let col_query = format!(
-                "SELECT c.name, c.column_id, tp.name AS type_name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, TRY_CONVERT(bigint, idc.seed_value) AS identity_seed, TRY_CONVERT(bigint, idc.increment_value) AS identity_increment, c.is_computed, cc.definition AS computed_def, c.collation_name
+                "SELECT c.name, c.column_id, tp.name AS type_name, c.max_length, c.precision, c.scale, c.is_nullable, c.is_identity, TRY_CONVERT(bigint, idc.seed_value) AS identity_seed, TRY_CONVERT(bigint, idc.increment_value) AS identity_increment, c.is_computed, cc.definition AS computed_def, cc.is_persisted AS computed_persisted, c.collation_name
                  FROM sys.columns c 
                  INNER JOIN sys.types tp ON c.user_type_id = tp.user_type_id 
                  LEFT JOIN sys.identity_columns idc ON c.object_id = idc.object_id AND c.column_id = idc.column_id
@@ -193,6 +193,7 @@ impl SqlServerReader {
                     identity_increment: cr.get::<i64, _>("identity_increment"),
                     is_computed: cr.get::<bool, _>("is_computed").unwrap_or(false),
                     computed_definition: cr.get::<&str, _>("computed_def").map(|s| s.to_string()),
+                    computed_persisted: cr.get::<bool, _>("computed_persisted").unwrap_or(false),
                     collation: cr.get::<&str, _>("collation_name").map(|s| s.to_string()),
                 });
             }

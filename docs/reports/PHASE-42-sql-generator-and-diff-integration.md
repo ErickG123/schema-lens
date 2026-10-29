@@ -7,15 +7,19 @@ The production path passed `SchemaDifference` objects and the target database na
 ## Changes
 
 - SQL generation now receives the source and target snapshots. Table creation uses captured source columns, types, lengths, precision/scale, nullability, identity, collation, defaults, keys, checks, indexes, and foreign keys when supported.
-- Missing metadata, computed columns whose persisted state is unavailable, unsupported types, indeterminate diffs, and unsupported transitions produce an explicit unavailable reason. Consolidated export is refused if any diff has no supported operation; it does not export a misleading partial migration.
+- Missing metadata, computed columns whose expression is unavailable, unsupported types, indeterminate diffs, and unsupported transitions produce an explicit unavailable reason. Computed-column expressions and persisted state are read from `sys.computed_columns`. Index definition mismatches are emitted as warned drop/recreate operations when supported; clustered-key conflicts remain unavailable. Consolidated export is refused if any diff has no supported operation; it does not export a misleading partial migration.
 - The comparison result retains its snapshots in Tauri state. Every current difference gets a generated SQL status, SQL or unavailability reason, and destructive-operation flag. The full script uses those same snapshots and the confirmed target database name.
 - Differences and risk alerts expose SQL preview and individual export. Destructive operations require confirmation. Export uses the native save dialog and writes a file; the app does not execute the generated SQL.
 - Dashboard alert and plan lists now have bounded scrolling areas. Portuguese labels affected by encoding damage were repaired.
-- SQL-file snapshots preserve ASC/DESC key order. Generated index DDL checks whether the named index already exists before creating it.
+- SQL-file snapshots preserve computed expressions, `PERSISTED`, and ASC/DESC key order. Generated index DDL checks whether the named index already exists before creating it.
+
+### Follow-up for blocked exports
+
+The report from the comparison UI identified two concrete blockers. Index property mismatches now use the source and target snapshots to emit an explicitly warned `DROP INDEX` followed by recreation from A's captured definition. A clustered replacement remains unavailable if another target clustered key prevents a valid transition. SQL Server introspection now captures `sys.computed_columns.is_persisted`, and computed DDL emits the captured expression with its persisted attribute. The offline SQL parser captures the same syntax. Missing computed expressions still fail closed. The new index-replacement and persisted-computed-column regressions pass in the Rust workspace suite.
 
 ## Supported operations and limitations
 
-Supported operations depend on exact snapshot metadata and include table/schema creation, column add/drop and supported alterations, primary/unique/default/check/foreign-key/index add/drop, and module definition replacement when the source definition is captured. Destructive operations are flagged. Primary/unique/check/foreign-key/index replacement transitions, generic identity/computed-column alteration, unsupported user-defined types, incomplete table metadata, and several indeterminate object states are refused with a reason. A generated script is a review artifact; preconditions and data compatibility still require review.
+Supported operations depend on exact snapshot metadata and include table/schema creation, column add/drop and supported alterations, primary/unique/default/check/foreign-key/index add/drop, index replacement where snapshots allow, and module definition replacement when the source definition is captured. Destructive operations are flagged. Primary/unique/check/foreign-key replacement transitions, generic identity/computed-column alteration, unsupported user-defined types, incomplete table metadata, and several indeterminate object states are refused with a reason. A generated script is a review artifact; preconditions and data compatibility still require review.
 
 ## Validation evidence
 

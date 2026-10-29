@@ -47,6 +47,7 @@ fn test_diff_engine_composite_primary_and_foreign_keys() {
                 identity_increment: None,
                 is_computed: false,
                 computed_definition: None,
+                computed_persisted: false,
                 collation: None,
             },
             ColumnMetadata {
@@ -62,6 +63,7 @@ fn test_diff_engine_composite_primary_and_foreign_keys() {
                 identity_increment: None,
                 is_computed: false,
                 computed_definition: None,
+                computed_persisted: false,
                 collation: None,
             },
             ColumnMetadata {
@@ -77,6 +79,7 @@ fn test_diff_engine_composite_primary_and_foreign_keys() {
                 identity_increment: None,
                 is_computed: false,
                 computed_definition: None,
+                computed_persisted: false,
                 collation: None,
             },
         ],
@@ -153,6 +156,7 @@ fn test_diff_engine_self_referencing_foreign_key() {
                 identity_increment: Some(1),
                 is_computed: false,
                 computed_definition: None,
+                computed_persisted: false,
                 collation: None,
             },
             ColumnMetadata {
@@ -168,6 +172,7 @@ fn test_diff_engine_self_referencing_foreign_key() {
                 identity_increment: None,
                 is_computed: false,
                 computed_definition: None,
+                computed_persisted: false,
                 collation: None,
             },
         ],
@@ -226,6 +231,7 @@ fn test_case_difference_in_casing_detected_without_crash() {
             identity_increment: Some(1),
             is_computed: false,
             computed_definition: None,
+            computed_persisted: false,
             collation: None,
         }],
         primary_key: None,
@@ -251,6 +257,7 @@ fn test_case_difference_in_casing_detected_without_crash() {
             identity_increment: Some(1),
             is_computed: false,
             computed_definition: None,
+            computed_persisted: false,
             collation: None,
         }],
         primary_key: None,
@@ -286,6 +293,7 @@ fn test_diff_engine_column_collation_and_nullability_mismatch() {
         identity_increment: None,
         is_computed: false,
         computed_definition: None,
+        computed_persisted: false,
         collation: Some("Latin1_General_BIN".to_string()),
     };
 
@@ -302,6 +310,7 @@ fn test_diff_engine_column_collation_and_nullability_mismatch() {
         identity_increment: None,
         is_computed: false,
         computed_definition: None,
+        computed_persisted: false,
         collation: Some("Latin1_General_CI_AS".to_string()), // Collation divergente
     };
 

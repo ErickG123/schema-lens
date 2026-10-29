@@ -11,6 +11,7 @@
   identity_increment?: number | null;
   is_computed: boolean;
   computed_definition?: string | null;
+  computed_persisted?: boolean;
   collation?: string | null;
 }
 

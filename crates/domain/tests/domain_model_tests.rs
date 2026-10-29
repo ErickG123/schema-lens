@@ -33,6 +33,7 @@ fn test_column_metadata_equality_and_cloning() {
         identity_increment: Some(1),
         is_computed: false,
         computed_definition: None,
+        computed_persisted: false,
         collation: None,
     };
 

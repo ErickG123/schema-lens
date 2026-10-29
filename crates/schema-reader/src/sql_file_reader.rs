@@ -388,6 +388,34 @@ impl SqlFileReader {
         }
 
         let name = tokens[0].trim_matches(|c| c == '[' || c == ']').to_string();
+        if tokens[1].eq_ignore_ascii_case("AS") {
+            let as_position = raw.to_ascii_uppercase().find(" AS ")?;
+            let mut expression = raw[as_position + 4..].trim().to_string();
+            let is_persisted = expression.to_ascii_uppercase().ends_with(" PERSISTED");
+            if is_persisted {
+                expression.truncate(expression.len() - " PERSISTED".len());
+                expression = expression.trim_end().to_string();
+            }
+            if expression.is_empty() {
+                return None;
+            }
+            return Some(ColumnMetadata {
+                name,
+                ordinal_position: ordinal,
+                data_type: "computed".to_string(),
+                max_length: 0,
+                precision: 0,
+                scale: 0,
+                is_nullable: true,
+                is_identity: false,
+                identity_seed: None,
+                identity_increment: None,
+                is_computed: true,
+                computed_definition: Some(expression),
+                computed_persisted: is_persisted,
+                collation: None,
+            });
+        }
         let raw_type = tokens[1].trim_matches(|c| c == '[' || c == ']');
         let (data_type, max_len) = Self::parse_type_and_length(raw_type);
 
@@ -408,6 +436,7 @@ impl SqlFileReader {
             identity_increment: if is_identity { Some(1) } else { None },
             is_computed: false,
             computed_definition: None,
+            computed_persisted: false,
             collation: None,
         })
     }
@@ -754,6 +783,7 @@ CREATE TABLE [sales].[Orders] (
     OrderId INT IDENTITY(1,1) NOT NULL,
     OrderCode VARCHAR(50) NOT NULL,
     Notes NVARCHAR(500) NULL,
+    Total AS ([OrderId] * 2) PERSISTED,
     CONSTRAINT PK_Orders PRIMARY KEY CLUSTERED (OrderId),
     CONSTRAINT UQ_OrderCode UNIQUE (OrderCode)
 );
@@ -771,7 +801,18 @@ GO
         assert_eq!(snap.tables.len(), 1);
         assert_eq!(snap.tables[0].id.schema, "sales");
         assert_eq!(snap.tables[0].id.name, "Orders");
-        assert_eq!(snap.tables[0].columns.len(), 3);
+        assert_eq!(snap.tables[0].columns.len(), 4);
+        let computed = snap.tables[0]
+            .columns
+            .iter()
+            .find(|column| column.name == "Total")
+            .expect("computed column should be captured");
+        assert!(computed.is_computed);
+        assert_eq!(
+            computed.computed_definition.as_deref(),
+            Some("([OrderId] * 2)")
+        );
+        assert!(computed.computed_persisted);
         assert!(snap.tables[0].primary_key.is_some());
         assert_eq!(snap.tables[0].unique_constraints.len(), 1);
         assert_eq!(snap.tables[0].indexes.len(), 1);
