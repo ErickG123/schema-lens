@@ -4,6 +4,7 @@ version = "1.0.0"
 edition = "2021"
 
 [dependencies]
+serde = { version = "1.0", features = ["derive"] }
 schema-lens-domain = { path = "../domain" }
 dotnet_conn_parser = { path = "../dotnet_conn_parser" }
 tokio = { version = "1.38", features = ["full"] }

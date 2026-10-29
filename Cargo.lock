@@ -3648,6 +3648,7 @@ dependencies = [
  "dotnet_conn_parser",
  "schema-diff",
  "schema-lens-domain",
+ "serde",
  "sql-generator",
  "thiserror 1.0.69",
  "tiberius",
